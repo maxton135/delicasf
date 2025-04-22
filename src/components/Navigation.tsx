@@ -8,9 +8,9 @@ export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <nav className="bg-[#132a1f] pt-6">
+    <nav className="bg-[#132a1f]">
       <div className="max-w-7xl mx-auto px-8 sm:px-12 lg:px-24">
-        <div className="flex items-center justify-between h-20">
+        <div className="flex items-center justify-between h-24">
           {/* Left Navigation */}
           <div className="hidden md:flex items-center space-x-8 w-1/3">
             <Link href="/" className="text-[#f2ede3] hover:text-[#f2ede3]/80 transition-colors">

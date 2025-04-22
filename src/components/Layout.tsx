@@ -2,14 +2,14 @@
 
 import Navigation from './Navigation';
 import Footer from './Footer';
-import { playfair } from '../app/layout';
+import { playfair } from '../app/fonts';
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default function Layout({ children, fullWidth = false }: { children: React.ReactNode, fullWidth?: boolean }) {
   return (
     <div className="min-h-screen flex flex-col bg-[#132a1f]">
       <Navigation />
-      <main className="flex-grow pt-8">
-        <div className="max-w-7xl mx-auto px-8 sm:px-12 lg:px-24">
+      <main className="flex-grow pt-2">
+        <div className={`${fullWidth ? '' : 'max-w-7xl mx-auto px-8 sm:px-12 lg:px-24'}`}>
           <div className="space-y-8">
             {children}
           </div>
