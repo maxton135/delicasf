@@ -1,10 +1,13 @@
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
-import { libre } from './fonts';
+import { MenuProvider } from '../context/MenuContext';
+
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'DELICA SF',
-  description: 'Japanese cuisine in the heart of San Francisco\'s Ferry Building',
+  title: 'Delica SF',
+  description: 'Japanese Delicatessen in San Francisco',
 };
 
 export default function RootLayout({
@@ -14,7 +17,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${libre.className} text-base`}>{children}</body>
+      <body className={inter.className}>
+        <MenuProvider>
+          {children}
+        </MenuProvider>
+      </body>
     </html>
   );
 } 
