@@ -5,27 +5,11 @@ import Layout from '../../components/Layout';
 import { playfair } from '../fonts';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import { useMenu } from '../../context/MenuContext';
-
-function LoadingSpinner() {
-  return (
-    <div className="flex flex-col items-center justify-center py-20">
-      <div className="relative w-16 h-16">
-        <div className="absolute top-0 left-0 w-full h-full border-4 border-[#9b804a]/20 rounded-full"></div>
-        <div className="absolute top-0 left-0 w-full h-full border-4 border-[#9b804a] rounded-full animate-spin border-t-transparent"></div>
-      </div>
-      <p className="mt-4 text-[#f2ede3] text-lg">Loading our delicious menu...</p>
-    </div>
-  );
-}
+import { useCart } from '../../context/CartContext';
 
 export default function Menu() {
   const { menuItems, loading, error } = useMenu();
-  const [toast, setToast] = useState<{ show: boolean; message: string }>({ show: false, message: '' });
-
-  const handleAddToCart = (itemName: string) => {
-    setToast({ show: true, message: 'Added to cart' });
-    setTimeout(() => setToast({ show: false, message: '' }), 2000);
-  };
+  const { addItem } = useCart();
 
   const scrollToCategory = (categoryId: string) => {
     const element = document.getElementById(categoryId);
@@ -65,12 +49,9 @@ export default function Menu() {
         {/* Menu Sections */}
         <div className="max-w-6xl mx-auto px-4 space-y-20">
           {loading ? (
-            <LoadingSpinner />
+            <div className="text-center text-[#f2ede3]">Loading menu items...</div>
           ) : error ? (
-            <div className="text-center text-red-500 py-20">
-              <p className="text-xl mb-2">Oops! Something went wrong</p>
-              <p className="text-[#f2ede3]/70">{error}</p>
-            </div>
+            <div className="text-center text-red-500">{error}</div>
           ) : (
             Object.entries(menuItems).map(([category, items]) => (
               <div key={category} id={category.toLowerCase()}>
@@ -88,10 +69,10 @@ export default function Menu() {
                           {item.itemData.name}
                         </h3>
                         <button
-                          onClick={() => handleAddToCart(item.itemData.name)}
-                          className="p-1 rounded-full hover:bg-[#9b804a]/20 transition-colors"
+                          onClick={() => addItem(item.itemData)}
+                          className="bg-[#9b804a] text-[#f2ede3] px-4 py-2 rounded hover:bg-[#8a7040] transition-colors"
                         >
-                          <PlusIcon className="w-5 h-5 text-[#9b804a]" />
+                          Add to Cart
                         </button>
                       </div>
                       <p className="text-[#f2ede3]/70 text-sm mt-2">
@@ -105,13 +86,6 @@ export default function Menu() {
           )}
         </div>
       </div>
-
-      {/* Toast Notification */}
-      {toast.show && (
-        <div className="fixed bottom-4 right-4 bg-[#9b804a] text-[#f2ede3] px-4 py-2 rounded-lg shadow-lg">
-          {toast.message}
-        </div>
-      )}
     </Layout>
   );
 } 

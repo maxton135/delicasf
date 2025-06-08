@@ -82,7 +82,7 @@ export async function GET(categoryId: string) {
       });
     }
 
-    console.log('Items organized by category:', itemsByCategory.Soups[1].itemData.variations[0].itemVariationData.priceMoney);
+    console.log('Items organized by category:', itemsByCategory);
 
     return NextResponse.json(itemsByCategory);
   } catch (error) {
