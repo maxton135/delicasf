@@ -12,10 +12,16 @@ export async function GET() {
       );
     }
     
-    return NextResponse.json({
+    const response = NextResponse.json({
       ordersEnabled: config.ordersEnabled,
       disabledMessage: config.disabledMessage,
     });
+    
+    // Add caching headers for order config
+    // Cache for 1 minute (60 seconds) with stale-while-revalidate
+    response.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+    
+    return response;
   } catch (error) {
     console.error('API Error:', error);
     return NextResponse.json(

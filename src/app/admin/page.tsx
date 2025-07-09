@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useOrderConfig } from '../../context/OrderConfigContext';
 
 export default function AdminPage() {
@@ -12,10 +12,20 @@ export default function AdminPage() {
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [updating, setUpdating] = useState(false);
+  
+  // Menu sync state
+  const [menuSyncing, setMenuSyncing] = useState(false);
+  const [menuSyncStatus, setMenuSyncStatus] = useState<any>(null);
+  const [lastMenuSync, setLastMenuSync] = useState<string | null>(null);
+  
+  // Menu management state
+  const [menuItems, setMenuItems] = useState<any>({});
+  const [loadingMenuItems, setLoadingMenuItems] = useState(false);
+  const [updatingItem, setUpdatingItem] = useState<number | null>(null);
 
-  const ADMIN_PASSWORD = 'delica2024'; // In production, this should be environment variable
+  // Admin password will be validated server-side via API
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!password.trim()) {
@@ -25,16 +35,36 @@ export default function AdminPage() {
       return;
     }
     
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      setPassword('');
-      setShowError(false);
-      setErrorMessage('');
-    } else {
-      setErrorMessage('Incorrect password. Please try again.');
+    try {
+      setUpdating(true);
+      
+      const response = await fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
+      });
+      
+      if (response.ok) {
+        setIsAuthenticated(true);
+        setPassword('');
+        setShowError(false);
+        setErrorMessage('');
+      } else {
+        const errorData = await response.json();
+        setErrorMessage(errorData.error || 'Authentication failed');
+        setShowError(true);
+        setTimeout(() => setShowError(false), 3000);
+        setPassword('');
+      }
+    } catch (error) {
+      setErrorMessage('Network error. Please try again.');
       setShowError(true);
       setTimeout(() => setShowError(false), 3000);
       setPassword('');
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -84,6 +114,107 @@ export default function AdminPage() {
     }
   };
 
+  // Menu sync functions
+  const fetchMenuSyncStatus = async () => {
+    try {
+      const response = await fetch('/api/menu/sync');
+      if (response.ok) {
+        const data = await response.json();
+        setMenuSyncStatus(data.syncStatus);
+        setLastMenuSync(data.syncStatus?.lastSuccessfulSync);
+      }
+    } catch (error) {
+      console.error('Error fetching menu sync status:', error);
+    }
+  };
+
+  // Menu management functions
+  const fetchMenuItems = async () => {
+    try {
+      setLoadingMenuItems(true);
+      const response = await fetch('/api/admin/menu');
+      if (response.ok) {
+        const data = await response.json();
+        setMenuItems(data.menuItems);
+      }
+    } catch (error) {
+      console.error('Error fetching menu items:', error);
+    } finally {
+      setLoadingMenuItems(false);
+    }
+  };
+
+  const handleToggleSoldOut = async (itemId: number) => {
+    try {
+      setUpdatingItem(itemId);
+      
+      const response = await fetch('/api/admin/menu', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          itemId,
+          action: 'toggle',
+        }),
+      });
+      
+      if (response.ok) {
+        await fetchMenuItems(); // Refresh the menu items
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 2000);
+      } else {
+        const errorData = await response.json();
+        setErrorMessage(errorData.error || 'Failed to update item');
+        setShowError(true);
+        setTimeout(() => setShowError(false), 3000);
+      }
+    } catch (error) {
+      setErrorMessage('Failed to update item. Please try again.');
+      setShowError(true);
+      setTimeout(() => setShowError(false), 3000);
+    } finally {
+      setUpdatingItem(null);
+    }
+  };
+
+  const handleMenuSync = async () => {
+    try {
+      setMenuSyncing(true);
+      setShowError(false);
+      
+      const response = await fetch('/api/menu/sync', {
+        method: 'POST',
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 3000);
+        await fetchMenuSyncStatus(); // Refresh status
+      } else {
+        setErrorMessage(data.error || 'Menu sync failed');
+        setShowError(true);
+        setTimeout(() => setShowError(false), 5000);
+      }
+    } catch (error) {
+      setErrorMessage('Failed to sync menu. Please try again.');
+      setShowError(true);
+      setTimeout(() => setShowError(false), 5000);
+    } finally {
+      setMenuSyncing(false);
+    }
+  };
+
+  // Load menu sync status and menu items when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchMenuSyncStatus();
+      fetchMenuItems();
+    }
+  }, [isAuthenticated]);
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -112,9 +243,14 @@ export default function AdminPage() {
             </div>
             <button
               type="submit"
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={updating}
+              className={`w-full py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                updating 
+                  ? 'bg-gray-400 cursor-not-allowed' 
+                  : 'bg-blue-600 hover:bg-blue-700'
+              } text-white`}
             >
-              Login
+              {updating ? 'Authenticating...' : 'Login'}
             </button>
           </form>
         </div>
@@ -175,6 +311,113 @@ export default function AdminPage() {
                   {updating ? 'Updating...' : ordersEnabled ? 'Disable Orders' : 'Enable Orders'}
                 </button>
               </div>
+            </div>
+
+            {/* Menu Sync Section */}
+            <div className="border-b border-gray-200 pb-6">
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">Menu Synchronization</h2>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">
+                      Sync Status: 
+                      <span className={`ml-2 font-medium ${
+                        menuSyncStatus?.syncStatus === 'success' ? 'text-green-600' : 
+                        menuSyncStatus?.syncStatus === 'error' ? 'text-red-600' : 
+                        menuSyncStatus?.syncStatus === 'in_progress' ? 'text-blue-600' : 'text-gray-600'
+                      }`}>
+                        {menuSyncStatus?.syncStatus?.toUpperCase() || 'UNKNOWN'}
+                      </span>
+                    </p>
+                    {lastMenuSync && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Last sync: {new Date(lastMenuSync).toLocaleString()}
+                      </p>
+                    )}
+                    {menuSyncStatus?.itemsCount && (
+                      <p className="text-xs text-gray-500">
+                        {menuSyncStatus.itemsCount} items, {menuSyncStatus.categoriesCount} categories
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleMenuSync}
+                    disabled={menuSyncing || updating || loading}
+                    className={`px-4 py-2 rounded-md font-medium focus:outline-none focus:ring-2 ${
+                      menuSyncing || updating || loading
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500'
+                    }`}
+                  >
+                    {menuSyncing ? 'Syncing...' : 'Sync Menu'}
+                  </button>
+                </div>
+                <div className="text-xs text-gray-500">
+                  <p>• Menu data is automatically synced every 30 minutes</p>
+                  <p>• Manual sync fetches the latest items from Square</p>
+                  <p>• Changes may take a few seconds to appear on the website</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Menu Management Section */}
+            <div className="border-b border-gray-200 pb-6">
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">Menu Management</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Toggle individual items as sold out. Sold out items will not appear in the customer menu.
+              </p>
+              
+              {loadingMenuItems ? (
+                <div className="text-center py-8">
+                  <div className="text-gray-500">Loading menu items...</div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {Object.entries(menuItems).map(([category, items]: [string, any[]]) => (
+                    <div key={category} className="border border-gray-200 rounded-lg p-4">
+                      <h3 className="font-medium text-gray-800 mb-3">{category}</h3>
+                      <div className="space-y-2">
+                        {items.map((item: any) => (
+                          <div key={item.id} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded">
+                            <div className="flex-1">
+                              <div className="font-medium text-gray-900">{item.itemData?.name || item.name}</div>
+                              {(item.itemData?.description || item.description) && (
+                                <div className="text-sm text-gray-600">{item.itemData?.description || item.description}</div>
+                              )}
+                            </div>
+                            <div className="flex items-center space-x-3">
+                              <span className={`text-sm font-medium ${
+                                item.isSoldOut ? 'text-red-600' : 'text-green-600'
+                              }`}>
+                                {item.isSoldOut ? 'SOLD OUT' : 'AVAILABLE'}
+                              </span>
+                              <button
+                                onClick={() => handleToggleSoldOut(item.dbId)}
+                                disabled={updatingItem === item.dbId}
+                                className={`px-3 py-1 rounded text-sm font-medium focus:outline-none focus:ring-2 ${
+                                  updatingItem === item.dbId
+                                    ? 'bg-gray-400 cursor-not-allowed'
+                                    : item.isSoldOut 
+                                    ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500' 
+                                    : 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
+                                }`}
+                              >
+                                {updatingItem === item.dbId ? 'Updating...' : item.isSoldOut ? 'Mark Available' : 'Mark Sold Out'}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {Object.keys(menuItems).length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      No menu items found. Try syncing the menu first.
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Message Customization Section */}

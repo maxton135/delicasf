@@ -45,9 +45,21 @@ const categoryToIdMapping = {
 
 export async function GET(categoryId: string) {
   try {
+    // Get environment variables with validation
+    const accessToken = process.env.SQUARE_ACCESS_TOKEN;
+    const environment = process.env.SQUARE_ENVIRONMENT || 'sandbox';
+    
+    if (!accessToken) {
+      console.error('SQUARE_ACCESS_TOKEN environment variable is required');
+      return NextResponse.json(
+        { error: 'Square API configuration missing' },
+        { status: 500 }
+      );
+    }
+    
     const client = new SquareClient({
-      environment: SquareEnvironment.Sandbox,
-      token: "EAAAENBwqBv2oXZn6jUr9mb90iH0_HWWgaHve9nYFaImt5iOBRcZyW_icBA396D7",
+      environment: environment === 'production' ? SquareEnvironment.Production : SquareEnvironment.Sandbox,
+      token: accessToken,
     });
 
     const response = await client.catalog.searchItems({
