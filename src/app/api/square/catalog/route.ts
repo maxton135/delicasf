@@ -39,7 +39,8 @@ const categoryToIdMapping = {
   "Deli": "HQ6IE4GLIF57OJEE4OQCELM5",
   "Sushi": "FKZBKY23IQZHT7LCD4HZL7SD",
   "Salads": "ZO5JJUKO2LOG7OHTPFKTZ442",
-  "Soups": "F6GVCTDXOAOF4TUNGBWYAPFY"
+  "Soups": "F6GVCTDXOAOF4TUNGBWYAPFY",
+  "Combos": "AB4PUQ5RJEEEZHC3B7GTTJKK"
 }
 
 export async function GET(categoryId: string) {

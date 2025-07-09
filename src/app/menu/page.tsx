@@ -10,6 +10,67 @@ import { useCart } from '../../context/CartContext';
 export default function Menu() {
   const { menuItems, loading, error } = useMenu();
   const { addItem } = useCart();
+  const [clickedButtons, setClickedButtons] = useState<Set<string>>(new Set());
+  const [selectedItem, setSelectedItem] = useState<string | null>(null);
+  const [selectedComboTypes, setSelectedComboTypes] = useState<Record<string, string>>({});
+
+  const handleAddToCart = (itemData: any) => {
+    addItem(itemData);
+    const buttonId = itemData.name;
+    setClickedButtons(prev => new Set(prev).add(buttonId));
+    setTimeout(() => {
+      setClickedButtons(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(buttonId);
+        return newSet;
+      });
+    }, 300);
+  };
+
+  const handleItemClick = (itemName: string) => {
+    setSelectedItem(selectedItem === itemName ? null : itemName);
+    // Clear combo selections when deselecting an item
+    if (selectedItem === itemName) {
+      setSelectedComboTypes(prev => {
+        const newSelections = { ...prev };
+        delete newSelections[itemName];
+        return newSelections;
+      });
+    }
+  };
+
+  const handleComboTypeSelect = (itemName: string, comboTypeName: string, comboTypeValue: string) => {
+    setSelectedComboTypes(prev => ({
+      ...prev,
+      [itemName]: comboTypeValue
+    }));
+  };
+
+  const getComboOptions = (itemData: any) => {
+    const variation = itemData.variations?.[0]?.customAttributeValues;
+    if (!variation) {
+      return [];
+    }
+    const comboTypes = Object.values(variation);
+    console.log("combotypes", comboTypes);
+    return comboTypes;
+  };
+
+  const parseComboString = (comboString: string) => {
+    // Split by '+' and format each part
+    return comboString
+      .split('+')
+      .map(part => {
+        // Find the first letter (category name starts with a letter)
+        const match = part.match(/^(\d+)([A-Za-z]+)$/);
+        if (match) {
+          const [, number, category] = match;
+          return `${number} ${category}`;
+        }
+        return part; // Return as-is if it doesn't match the expected format
+      })
+      .join(' + ');
+  };
 
   const scrollToCategory = (categoryId: string) => {
     const element = document.getElementById(categoryId);
@@ -53,36 +114,138 @@ export default function Menu() {
           ) : error ? (
             <div className="text-center text-red-500">{error}</div>
           ) : (
-            Object.entries(menuItems).map(([category, items]) => (
-              <div key={category} id={category.toLowerCase()}>
-                <div className="flex items-center mb-8">
-                  <h2 className={`${playfair.className} text-3xl text-[#9b804a] pr-4`}>
-                    {category}
-                  </h2>
-                  <div className="flex-grow h-px bg-[#f2ede3]/30"></div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  {items.map((item, index) => (
-                    <div key={index} className="text-left">
-                      <div className="flex items-center gap-2">
-                        <h3 className={`${playfair.className} text-xl text-[#f2ede3]`}>
-                          {item.itemData.name}
-                        </h3>
-                        <button
-                          onClick={() => addItem(item.itemData)}
-                          className="bg-[#9b804a] text-[#f2ede3] px-4 py-2 rounded hover:bg-[#8a7040] transition-colors"
+            Object.entries(menuItems).map(([category, items]) => {
+              const isComboCategory = category === "Combos";
+              
+              return (
+                <div key={category} id={category.toLowerCase()}>
+                  <div className="flex items-center mb-8">
+                    <h2 className={`${playfair.className} text-3xl text-[#9b804a] pr-4`}>
+                      {category}
+                    </h2>
+                    <div className="flex-grow h-px bg-[#f2ede3]/30"></div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {items.map((item, index) => {
+                      const isClicked = clickedButtons.has(item.itemData.name);
+                      const isSelected = selectedItem === item.itemData.name;
+                      const comboOptions = isComboCategory ? getComboOptions(item.itemData) : [];
+                      const selectedComboType = selectedComboTypes[item.itemData.name];
+                      const hasSelectedComboType = selectedComboType && selectedComboType !== '';
+                      
+                      return (
+                        <div 
+                          key={index} 
+                          className={`
+                            text-left p-4 rounded-lg cursor-pointer transition-all duration-300
+                            ${isSelected 
+                              ? 'bg-[#9b804a]/20 border-2 border-[#9b804a] shadow-lg' 
+                              : 'bg-[#2a2a2a] hover:bg-[#3a3a3a] border-2 border-transparent'
+                            }
+                          `}
+                          onClick={() => handleItemClick(item.itemData.name)}
                         >
-                          Add to Cart
-                        </button>
-                      </div>
-                      <p className="text-[#f2ede3]/70 text-sm mt-2">
-                        {item.itemData.description}
-                      </p>
-                    </div>
-                  ))}
+                          <div className="flex items-center justify-between">
+                            <h3 className={`${playfair.className} text-xl text-[#f2ede3]`}>
+                              {item.itemData.name}
+                            </h3>
+                            {isSelected && !isComboCategory && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAddToCart(item.itemData);
+                                }}
+                                className={`
+                                  p-2 rounded-full border-2 border-[#9b804a] text-[#9b804a] 
+                                  hover:bg-[#9b804a] hover:text-[#f2ede3] 
+                                  transition-all duration-300 ease-in-out
+                                  ${isClicked ? 'animate-bounce scale-110' : ''}
+                                  focus:outline-none focus:ring-2 focus:ring-[#9b804a] focus:ring-opacity-50
+                                `}
+                              >
+                                <PlusIcon className="w-5 h-5" />
+                              </button>
+                            )}
+                            {isSelected && isComboCategory && hasSelectedComboType && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAddToCart(item.itemData);
+                                }}
+                                className={`
+                                  p-2 rounded-full border-2 border-[#9b804a] text-[#9b804a] 
+                                  hover:bg-[#9b804a] hover:text-[#f2ede3] 
+                                  transition-all duration-300 ease-in-out
+                                  ${isClicked ? 'animate-bounce scale-110' : ''}
+                                  focus:outline-none focus:ring-2 focus:ring-[#9b804a] focus:ring-opacity-50
+                                `}
+                              >
+                                <PlusIcon className="w-5 h-5" />
+                              </button>
+                            )}
+                          </div>
+                          <p className="text-[#f2ede3]/70 text-sm mt-2">
+                            {item.itemData.description}
+                          </p>
+                          
+                          {/* Combo Options Display */}
+                          {isSelected && isComboCategory && (
+                            <div className="mt-4 space-y-3">
+                              <p className="text-[#9b804a] text-sm font-medium">
+                                Choose your combo type:
+                              </p>
+                              <div className="space-y-2">
+                                {comboOptions
+                                  .filter((option: any) => option.name && option.name.includes('combo_type'))
+                                  .map((option: any, optionIndex: number) => {
+                                    const isSelected = selectedComboType === option.stringValue;
+                                    return (
+                                      <div 
+                                        key={optionIndex} 
+                                        className={`
+                                          p-3 rounded border cursor-pointer transition-all duration-200
+                                          ${isSelected 
+                                            ? 'bg-[#9b804a]/30 border-[#9b804a] shadow-md' 
+                                            : 'bg-[#1a1a1a] border-[#3a3a3a] hover:bg-[#2a2a2a] hover:border-[#9b804a]/50'
+                                          }
+                                        `}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleComboTypeSelect(item.itemData.name, option.name, option.stringValue);
+                                        }}
+                                      >
+                                        <p className="text-[#f2ede3] font-medium text-sm">
+                                          {parseComboString(option.stringValue)}
+                                        </p>
+                                        {isSelected && (
+                                          <div className="mt-2 text-[#9b804a] text-xs font-medium">
+                                            ✓ Selected
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                              </div>
+                              {!hasSelectedComboType && (
+                                <p className="text-[#f2ede3]/50 text-xs italic">
+                                  Please select a combo type to add to cart
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          
+                          {isSelected && !isComboCategory && (
+                            <p className="text-[#9b804a] text-sm mt-2 font-medium">
+                              Click the + button to add to cart
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
