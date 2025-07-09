@@ -1,16 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// In a production environment, this would be stored in a database
-// For now, we'll use a simple in-memory storage that resets on server restart
-let orderConfig = {
-  ordersEnabled: true,
-  disabledMessage: "Online ordering is currently unavailable. Please call us to place your order."
-};
+import { orderConfigService } from '../../../../db/operations';
 
 export async function GET() {
   try {
-    return NextResponse.json(orderConfig);
+    const config = await orderConfigService.getOrderConfig();
+    
+    if (!config) {
+      return NextResponse.json(
+        { error: 'No order configuration found' },
+        { status: 404 }
+      );
+    }
+    
+    return NextResponse.json({
+      ordersEnabled: config.ordersEnabled,
+      disabledMessage: config.disabledMessage,
+    });
   } catch (error) {
+    console.error('API Error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch order configuration' },
       { status: 500 }
@@ -37,15 +44,18 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Update the configuration
-    orderConfig.ordersEnabled = body.ordersEnabled;
+    // Update the configuration using database service
+    const updatedConfig = await orderConfigService.updateOrderConfig({
+      ordersEnabled: body.ordersEnabled,
+      disabledMessage: body.disabledMessage,
+    });
     
-    if (body.disabledMessage) {
-      orderConfig.disabledMessage = body.disabledMessage;
-    }
-    
-    return NextResponse.json(orderConfig);
+    return NextResponse.json({
+      ordersEnabled: updatedConfig.ordersEnabled,
+      disabledMessage: updatedConfig.disabledMessage,
+    });
   } catch (error) {
+    console.error('API Error:', error);
     return NextResponse.json(
       { error: 'Failed to update order configuration' },
       { status: 500 }
@@ -58,6 +68,8 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     
     // Validate and update only provided fields
+    const updates: { ordersEnabled?: boolean; disabledMessage?: string } = {};
+    
     if (body.ordersEnabled !== undefined) {
       if (typeof body.ordersEnabled !== 'boolean') {
         return NextResponse.json(
@@ -65,7 +77,7 @@ export async function PATCH(request: NextRequest) {
           { status: 400 }
         );
       }
-      orderConfig.ordersEnabled = body.ordersEnabled;
+      updates.ordersEnabled = body.ordersEnabled;
     }
     
     if (body.disabledMessage !== undefined) {
@@ -75,11 +87,18 @@ export async function PATCH(request: NextRequest) {
           { status: 400 }
         );
       }
-      orderConfig.disabledMessage = body.disabledMessage;
+      updates.disabledMessage = body.disabledMessage;
     }
     
-    return NextResponse.json(orderConfig);
+    // Update the configuration using database service
+    const updatedConfig = await orderConfigService.updateOrderConfig(updates);
+    
+    return NextResponse.json({
+      ordersEnabled: updatedConfig.ordersEnabled,
+      disabledMessage: updatedConfig.disabledMessage,
+    });
   } catch (error) {
+    console.error('API Error:', error);
     return NextResponse.json(
       { error: 'Failed to update order configuration' },
       { status: 500 }

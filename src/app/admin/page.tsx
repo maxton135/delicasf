@@ -4,13 +4,14 @@ import { useState } from 'react';
 import { useOrderConfig } from '../../context/OrderConfigContext';
 
 export default function AdminPage() {
-  const { ordersEnabled, disabledMessage, toggleOrders, setDisabledMessage } = useOrderConfig();
+  const { ordersEnabled, disabledMessage, toggleOrders, setDisabledMessage, loading, error } = useOrderConfig();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [tempMessage, setTempMessage] = useState(disabledMessage);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [updating, setUpdating] = useState(false);
 
   const ADMIN_PASSWORD = 'delica2024'; // In production, this should be environment variable
 
@@ -37,9 +38,10 @@ export default function AdminPage() {
     }
   };
 
-  const handleToggle = () => {
+  const handleToggle = async () => {
     try {
-      toggleOrders();
+      setUpdating(true);
+      await toggleOrders();
       setShowSuccess(true);
       setShowError(false);
       setTimeout(() => setShowSuccess(false), 3000);
@@ -47,10 +49,12 @@ export default function AdminPage() {
       setErrorMessage('Failed to update order status. Please try again.');
       setShowError(true);
       setTimeout(() => setShowError(false), 3000);
+    } finally {
+      setUpdating(false);
     }
   };
 
-  const handleMessageUpdate = () => {
+  const handleMessageUpdate = async () => {
     try {
       if (!tempMessage.trim()) {
         setErrorMessage('Please enter a message');
@@ -66,7 +70,8 @@ export default function AdminPage() {
         return;
       }
       
-      setDisabledMessage(tempMessage);
+      setUpdating(true);
+      await setDisabledMessage(tempMessage);
       setShowSuccess(true);
       setShowError(false);
       setTimeout(() => setShowSuccess(false), 3000);
@@ -74,6 +79,8 @@ export default function AdminPage() {
       setErrorMessage('Failed to update message. Please try again.');
       setShowError(true);
       setTimeout(() => setShowError(false), 3000);
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -156,13 +163,16 @@ export default function AdminPage() {
                 </div>
                 <button
                   onClick={handleToggle}
+                  disabled={updating || loading}
                   className={`px-4 py-2 rounded-md font-medium focus:outline-none focus:ring-2 ${
-                    ordersEnabled 
+                    updating || loading
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : ordersEnabled 
                       ? 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500' 
                       : 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500'
                   }`}
                 >
-                  {ordersEnabled ? 'Disable Orders' : 'Enable Orders'}
+                  {updating ? 'Updating...' : ordersEnabled ? 'Disable Orders' : 'Enable Orders'}
                 </button>
               </div>
             </div>
@@ -195,14 +205,14 @@ export default function AdminPage() {
                 </div>
                 <button
                   onClick={handleMessageUpdate}
-                  disabled={!tempMessage.trim() || tempMessage.length > 200}
+                  disabled={!tempMessage.trim() || tempMessage.length > 200 || updating || loading}
                   className={`px-4 py-2 rounded-md focus:outline-none focus:ring-2 ${
-                    !tempMessage.trim() || tempMessage.length > 200
+                    !tempMessage.trim() || tempMessage.length > 200 || updating || loading
                       ? 'bg-gray-400 cursor-not-allowed'
                       : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
                   } text-white`}
                 >
-                  Update Message
+                  {updating ? 'Updating...' : 'Update Message'}
                 </button>
               </div>
             </div>
