@@ -4,10 +4,12 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { playfair } from '../app/fonts';
 import { usePathname } from 'next/navigation';
+import { useOrderConfig } from '../context/OrderConfigContext';
 
 export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
+  const { ordersEnabled, disabledMessage } = useOrderConfig();
 
   const isActive = (path: string) => pathname === path;
 
@@ -52,11 +54,19 @@ export default function Navigation() {
 
           {/* Right Section - Order Online Button and Icons */}
           <div className="hidden md:flex items-center justify-end w-1/3 space-x-4">
-            <button
-              className="border-2 border-[#9b804a] text-[#9b804a] py-2 px-6 rounded hover:bg-[#9b804a]/10 transition-colors"
-            >
-              Order Now
-            </button>
+            {ordersEnabled ? (
+              <Link
+                href="/menu"
+                className="border-2 border-[#9b804a] text-[#9b804a] py-2 px-6 rounded hover:bg-[#9b804a]/10 transition-colors"
+              >
+                Order Now
+              </Link>
+            ) : (
+              <div className="text-[#f2ede3] text-sm text-center">
+                <div className="text-red-400 font-medium">Orders Disabled</div>
+                <div className="text-xs mt-1 max-w-48">{disabledMessage}</div>
+              </div>
+            )}
             <button className="text-[#f2ede3] hover:text-[#f2ede3]/80 transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
@@ -130,11 +140,19 @@ export default function Navigation() {
             >
               Contact
             </Link>
-            <button
-              className="w-full mt-4 border-2 border-[#9b804a] text-[#9b804a] py-2 px-6 rounded hover:bg-[#9b804a]/10 transition-colors"
-            >
-              Order Now
-            </button>
+            {ordersEnabled ? (
+              <Link
+                href="/menu"
+                className="w-full mt-4 border-2 border-[#9b804a] text-[#9b804a] py-2 px-6 rounded hover:bg-[#9b804a]/10 transition-colors text-center block"
+              >
+                Order Now
+              </Link>
+            ) : (
+              <div className="w-full mt-4 text-center">
+                <div className="text-red-400 font-medium">Orders Disabled</div>
+                <div className="text-[#f2ede3] text-sm mt-2 px-4">{disabledMessage}</div>
+              </div>
+            )}
             <div className="flex justify-center space-x-4 mt-4">
               <button className="text-[#f2ede3] hover:text-[#f2ede3]/80 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">

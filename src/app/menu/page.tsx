@@ -6,10 +6,12 @@ import { playfair } from '../fonts';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import { useMenu } from '../../context/MenuContext';
 import { useCart } from '../../context/CartContext';
+import { useOrderConfig } from '../../context/OrderConfigContext';
 
 export default function Menu() {
   const { menuItems, loading, error } = useMenu();
   const { addItem } = useCart();
+  const { ordersEnabled, disabledMessage } = useOrderConfig();
   const [clickedButtons, setClickedButtons] = useState<Set<string>>(new Set());
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [selectedComboTypes, setSelectedComboTypes] = useState<Record<string, string>>({});
@@ -105,6 +107,14 @@ export default function Menu() {
               ))}
             </div>
           </div>
+          
+          {/* Orders Disabled Message */}
+          {!ordersEnabled && (
+            <div className="mt-8 bg-red-900/20 border border-red-500 rounded-lg p-6 text-center">
+              <h3 className="text-xl font-bold text-red-400 mb-2">Online Orders Currently Disabled</h3>
+              <p className="text-[#f2ede3]">{disabledMessage}</p>
+            </div>
+          )}
         </div>
 
         {/* Menu Sections */}
@@ -149,7 +159,7 @@ export default function Menu() {
                             <h3 className={`${playfair.className} text-xl text-[#f2ede3]`}>
                               {item.itemData.name}
                             </h3>
-                            {isSelected && !isComboCategory && (
+                            {isSelected && !isComboCategory && ordersEnabled && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -166,7 +176,7 @@ export default function Menu() {
                                 <PlusIcon className="w-5 h-5" />
                               </button>
                             )}
-                            {isSelected && isComboCategory && hasSelectedComboType && (
+                            {isSelected && isComboCategory && hasSelectedComboType && ordersEnabled && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -236,7 +246,7 @@ export default function Menu() {
                           
                           {isSelected && !isComboCategory && (
                             <p className="text-[#9b804a] text-sm mt-2 font-medium">
-                              Click the + button to add to cart
+                              {ordersEnabled ? 'Click the + button to add to cart' : 'Online ordering is currently disabled'}
                             </p>
                           )}
                         </div>
