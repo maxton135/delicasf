@@ -13,8 +13,8 @@ export function initializeApp() {
   console.log('Initializing application services...');
   
   try {
-    // Start background sync service
-    backgroundSyncService.start();
+    // Background sync service disabled - menu sync is now manual only
+    // backgroundSyncService.start();
     
     initialized = true;
     console.log('Application services initialized successfully');

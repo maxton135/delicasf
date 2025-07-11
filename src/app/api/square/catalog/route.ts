@@ -43,7 +43,7 @@ const categoryToIdMapping = {
   "Combos": "AB4PUQ5RJEEEZHC3B7GTTJKK"
 }
 
-export async function GET(categoryId: string) {
+export async function GET() {
   try {
     // Get environment variables with validation
     const accessToken = process.env.SQUARE_ACCESS_TOKEN;

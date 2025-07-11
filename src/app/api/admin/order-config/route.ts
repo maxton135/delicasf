@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { orderConfigService } from '../../../../db/operations';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET() {
+export const GET = withAdminAuth(async () => {
   try {
     const config = await orderConfigService.getOrderConfig();
     
@@ -29,9 +30,9 @@ export async function GET() {
       { status: 500 }
     );
   }
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withAdminAuth(async (request: NextRequest) => {
   try {
     const body = await request.json();
     
@@ -67,9 +68,9 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
-export async function PATCH(request: NextRequest) {
+export const PATCH = withAdminAuth(async (request: NextRequest) => {
   try {
     const body = await request.json();
     
@@ -110,4 +111,4 @@ export async function PATCH(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

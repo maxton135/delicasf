@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { menuSyncService } from '../../../../db/menuSyncService';
 import { menuItemService } from '../../../../db/operations';
+import { withAdminAuth } from '@/lib/adminAuth';
 
-export async function GET() {
+export const GET = withAdminAuth(async () => {
   try {
     // Get the organized menu data (like customer menu but with sold-out items)
     const cachedMenuData = await menuSyncService.getCachedMenuData();
@@ -37,9 +38,9 @@ export async function GET() {
       { status: 500 }
     );
   }
-}
+});
 
-export async function PATCH(request: NextRequest) {
+export const PATCH = withAdminAuth(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const { itemId, action, isSoldOut } = body;
@@ -80,9 +81,9 @@ export async function PATCH(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withAdminAuth(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const { action, itemIds, isSoldOut } = body;
@@ -114,4 +115,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

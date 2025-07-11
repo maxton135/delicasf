@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { Client } from 'square';
+import { SquareClient, SquareEnvironment } from 'square';
 
 export async function GET(request: Request) {
   try {
@@ -16,9 +16,9 @@ export async function GET(request: Request) {
     }
 
     // Initialize Square client
-    const client = new Client({
-      accessToken: process.env.SQUARE_ACCESS_TOKEN,
-      environment: 'sandbox' // Change to 'production' for live environment
+    const client = new SquareClient({
+      token: process.env.SQUARE_ACCESS_TOKEN,
+      environment: SquareEnvironment.Sandbox
     });
 
     // Exchange the authorization code for tokens
@@ -30,17 +30,19 @@ export async function GET(request: Request) {
       redirectUri: `${process.env.NEXT_PUBLIC_BASE_URL}/api/square/callback`
     });
 
-    if (!response.result.accessToken) {
+    // Handle the response with proper typing
+    const responseData = response as any;
+    if (!responseData.result?.accessToken) {
       throw new Error('Failed to obtain access token');
     }
 
     // Store the tokens securely (you should implement your own storage solution)
     // For example, you might want to store these in a database
     const tokens = {
-      accessToken: response.result.accessToken,
-      refreshToken: response.result.refreshToken,
-      merchantId: response.result.merchantId,
-      expiresAt: new Date(Date.now() + (response.result.expiresIn * 1000))
+      accessToken: responseData.result.accessToken,
+      refreshToken: responseData.result.refreshToken,
+      merchantId: responseData.result.merchantId,
+      expiresAt: new Date(Date.now() + ((responseData.result.expiresIn || 0) * 1000))
     };
 
     // Redirect to a success page or return the tokens

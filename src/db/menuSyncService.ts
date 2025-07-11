@@ -207,9 +207,9 @@ export class MenuSyncService {
                 variationsToInsert.push({
                   menuItemId: itemIndex + 1, // Will be actual ID after insert
                   squareVariationId: variation.id,
-                  name: attr.name || 'Unknown',
-                  type: attr.name?.includes('combo_type') ? 'combo_type' : 'other',
-                  value: attr.stringValue || '',
+                  name: (attr.name as string) || 'Unknown',
+                  type: (attr.name as string)?.includes('combo_type') ? 'combo_type' : 'other',
+                  value: (attr.stringValue as string) || '',
                   isActive: true,
                 });
               }

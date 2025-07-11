@@ -14,10 +14,13 @@
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@square/web-sdk": "^2.1.0",
+    "@types/bcrypt": "^5.0.2",
+    "bcrypt": "^6.0.0",
     "better-sqlite3": "^12.2.0",
     "drizzle-kit": "^0.31.4",
     "drizzle-orm": "^0.44.2",
     "framer-motion": "^12.7.4",
+    "iron-session": "^8.0.4",
     "next": "^15.3.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

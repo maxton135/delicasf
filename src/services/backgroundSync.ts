@@ -1,7 +1,7 @@
 import { menuSyncService } from '../db/menuSyncService';
 
 class BackgroundSyncService {
-  private syncInterval: NodeJS.Timer | null = null;
+  private syncInterval: NodeJS.Timeout | null = null;
   private isRunning = false;
   private intervalMinutes: number;
 
@@ -78,7 +78,7 @@ class BackgroundSyncService {
 // Export singleton instance
 export const backgroundSyncService = new BackgroundSyncService();
 
-// Auto-start in production environments
-if (typeof window === 'undefined' && process.env.NODE_ENV === 'production') {
-  backgroundSyncService.start();
-}
+// Auto-start disabled - menu sync is now manual only
+// if (typeof window === 'undefined' && process.env.NODE_ENV === 'production') {
+//   backgroundSyncService.start();
+// }

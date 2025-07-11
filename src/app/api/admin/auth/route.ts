@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminPassword, checkRateLimit, logAuthAttempt } from '@/lib/adminAuth';
+import { createSession } from '@/lib/session';
+import { randomBytes } from 'crypto';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,11 +15,33 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const adminPassword = process.env.ADMIN_PASSWORD || 'delica2024';
+    // Get client IP for rate limiting
+    const clientIP = request.headers.get('x-forwarded-for') || 
+                     request.headers.get('x-real-ip') || 
+                     'unknown';
+    const userAgent = request.headers.get('user-agent');
     
-    if (password === adminPassword) {
+    // Check rate limit
+    if (!checkRateLimit(clientIP)) {
+      logAuthAttempt(clientIP, false, userAgent);
+      return NextResponse.json(
+        { error: 'Too many attempts. Please try again later.' },
+        { status: 429 }
+      );
+    }
+    
+    // Verify password
+    const isValid = await verifyAdminPassword(password);
+    
+    if (isValid) {
+      // Create session
+      const sessionId = randomBytes(32).toString('hex');
+      await createSession(sessionId);
+      
+      logAuthAttempt(clientIP, true, userAgent);
       return NextResponse.json({ success: true });
     } else {
+      logAuthAttempt(clientIP, false, userAgent);
       return NextResponse.json(
         { error: 'Invalid password' },
         { status: 401 }
