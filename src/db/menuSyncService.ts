@@ -14,14 +14,7 @@ import {
   type InsertMenuSyncStatus 
 } from './schema';
 
-// Category mapping from Square IDs to names
-const categoryMapping = {
-  "HQ6IE4GLIF57OJEE4OQCELM5": "Deli",
-  "FKZBKY23IQZHT7LCD4HZL7SD": "Sushi", 
-  "ZO5JJUKO2LOG7OHTPFKTZ442": "Salads",
-  "F6GVCTDXOAOF4TUNGBWYAPFY": "Soups",
-  "AB4PUQ5RJEEEZHC3B7GTTJKK": "Combos"
-};
+// Category mapping is now dynamic - no hardcoded categories
 
 export class MenuSyncService {
   private db = getDatabase();
@@ -110,8 +103,10 @@ export class MenuSyncService {
     try {
       const client = this.getSquareClient();
       
+      // Fetch all catalog items without category filtering
       const response = await client.catalog.searchItems({
-        categoryIds: Object.keys(categoryMapping),
+        limit: 100,
+        sortOrder: 'ASC'
       });
 
       return this.convertToPlainObject(response);
@@ -121,9 +116,24 @@ export class MenuSyncService {
     }
   }
 
-  // Sync categories to database
-  private async syncCategories() {
-    const categoriesToInsert: InsertMenuCategory[] = Object.entries(categoryMapping).map(
+  // Sync categories to database dynamically from Square items
+  private async syncCategories(squareResponse: any) {
+    const categoryMap = new Map<string, string>();
+    
+    // Extract categories from items
+    if (squareResponse.items && Array.isArray(squareResponse.items)) {
+      squareResponse.items.forEach((item: any) => {
+        if (item.itemData && item.itemData.categories) {
+          item.itemData.categories.forEach((category: { id: string }) => {
+            // For now, use the category ID as the name
+            // In a future update, we can fetch actual category names from Square
+            categoryMap.set(category.id, `Category ${category.id}`);
+          });
+        }
+      });
+    }
+    
+    const categoriesToInsert: InsertMenuCategory[] = Array.from(categoryMap.entries()).map(
       ([squareId, name], index) => ({
         squareId,
         name,
@@ -135,8 +145,10 @@ export class MenuSyncService {
     // Clear existing categories
     await this.db.delete(menuCategories);
     
-    // Insert new categories
-    await this.db.insert(menuCategories).values(categoriesToInsert);
+    // Insert new categories if any exist
+    if (categoriesToInsert.length > 0) {
+      await this.db.insert(menuCategories).values(categoriesToInsert);
+    }
     
     return categoriesToInsert.length;
   }
@@ -274,7 +286,7 @@ export class MenuSyncService {
       const squareResponse = await this.fetchSquareCatalog();
       
       // Sync categories
-      const categoriesCount = await this.syncCategories();
+      const categoriesCount = await this.syncCategories(squareResponse);
       
       // Sync menu items
       const { itemsCount, variationsCount } = await this.syncMenuItems(squareResponse);

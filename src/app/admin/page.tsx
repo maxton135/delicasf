@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useOrderConfig } from '../../context/OrderConfigContext';
+import { useMenu } from '../../context/MenuContext';
 
 export default function AdminPage() {
   const { ordersEnabled, disabledMessage, toggleOrders, setDisabledMessage, loading, error } = useOrderConfig();
@@ -23,7 +24,20 @@ export default function AdminPage() {
   const [loadingMenuItems, setLoadingMenuItems] = useState(false);
   const [updatingItem, setUpdatingItem] = useState<number | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'store' | 'menu'>('store');
+  const [activeTab, setActiveTab] = useState<'store' | 'menu' | 'categories' | 'preview'>('store');
+
+  // Display categories state
+  const [displayCategories, setDisplayCategories] = useState<any[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [categoryForm, setCategoryForm] = useState({ name: '', description: '', displayOrder: 0 });
+  const [editingCategory, setEditingCategory] = useState<any>(null);
+  const [updatingCategory, setUpdatingCategory] = useState<number | null>(null);
+  const [showCategoryAssignment, setShowCategoryAssignment] = useState<number | null>(null);
+  const [menuItemCategories, setMenuItemCategories] = useState<{[key: number]: any[]}>({});
+  const [previewMenuItems, setPreviewMenuItems] = useState<{[key: string]: any[]}>({});
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [loadingCategoryAssignment, setLoadingCategoryAssignment] = useState(false);
 
   // Check session on component mount
   useEffect(() => {
@@ -245,6 +259,202 @@ export default function AdminPage() {
     }
   };
 
+  const fetchDisplayCategories = async () => {
+    try {
+      setLoadingCategories(true);
+      const response = await fetch('/api/admin/display-categories');
+      if (response.ok) {
+        const data = await response.json();
+        setDisplayCategories(data.displayCategories || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch display categories:', error);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  const handleCategorySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!categoryForm.name.trim()) return;
+
+    try {
+      setUpdatingCategory(editingCategory?.id || -1);
+      const url = editingCategory 
+        ? `/api/admin/display-categories/${editingCategory.id}`
+        : '/api/admin/display-categories';
+      const method = editingCategory ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(categoryForm),
+      });
+
+      if (response.ok) {
+        await fetchDisplayCategories();
+        setShowCategoryForm(false);
+        setCategoryForm({ name: '', description: '', displayOrder: 0 });
+        setEditingCategory(null);
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 3000);
+      } else {
+        const errorData = await response.json();
+        setErrorMessage(errorData.error || 'Failed to save category');
+        setShowError(true);
+        setTimeout(() => setShowError(false), 3000);
+      }
+    } catch (error) {
+      setErrorMessage('Failed to save category. Please try again.');
+      setShowError(true);
+      setTimeout(() => setShowError(false), 3000);
+    } finally {
+      setUpdatingCategory(null);
+    }
+  };
+
+  const handleCategoryDelete = async (categoryId: number) => {
+    if (!confirm('Are you sure you want to delete this category?')) return;
+
+    try {
+      setUpdatingCategory(categoryId);
+      const response = await fetch(`/api/admin/display-categories/${categoryId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        await fetchDisplayCategories();
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 3000);
+      } else {
+        const errorData = await response.json();
+        setErrorMessage(errorData.error || 'Failed to delete category');
+        setShowError(true);
+        setTimeout(() => setShowError(false), 3000);
+      }
+    } catch (error) {
+      setErrorMessage('Failed to delete category. Please try again.');
+      setShowError(true);
+      setTimeout(() => setShowError(false), 3000);
+    } finally {
+      setUpdatingCategory(null);
+    }
+  };
+
+  const handleCategoryEdit = (category: any) => {
+    setEditingCategory(category);
+    setCategoryForm({
+      name: category.name,
+      description: category.description || '',
+      displayOrder: category.displayOrder || 0,
+    });
+    setShowCategoryForm(true);
+  };
+
+  const handleCategoryToggle = async (categoryId: number) => {
+    try {
+      setUpdatingCategory(categoryId);
+      const category = displayCategories.find(c => c.id === categoryId);
+      if (!category) return;
+
+      const response = await fetch(`/api/admin/display-categories/${categoryId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: category.name,
+          description: category.description,
+          displayOrder: category.displayOrder,
+          isActive: !category.isActive,
+        }),
+      });
+
+      if (response.ok) {
+        await fetchDisplayCategories();
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 3000);
+      } else {
+        const errorData = await response.json();
+        setErrorMessage(errorData.error || 'Failed to update category');
+        setShowError(true);
+        setTimeout(() => setShowError(false), 3000);
+      }
+    } catch (error) {
+      setErrorMessage('Failed to update category. Please try again.');
+      setShowError(true);
+      setTimeout(() => setShowError(false), 3000);
+    } finally {
+      setUpdatingCategory(null);
+    }
+  };
+
+  const fetchMenuItemCategories = async (menuItemId: number) => {
+    try {
+      setLoadingCategoryAssignment(true);
+      const response = await fetch(`/api/admin/menu-items/${menuItemId}/display-categories`);
+      if (response.ok) {
+        const data = await response.json();
+        setMenuItemCategories(prev => ({
+          ...prev,
+          [menuItemId]: data.assignedCategories || []
+        }));
+      } else {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Failed to fetch menu item categories:', error);
+      setErrorMessage('Failed to load category assignments. Please try again.');
+      setShowError(true);
+      setTimeout(() => setShowError(false), 3000);
+    } finally {
+      setLoadingCategoryAssignment(false);
+    }
+  };
+
+  const fetchPreviewMenuItems = async () => {
+    try {
+      setLoadingPreview(true);
+      const response = await fetch('/api/menu');
+      if (response.ok) {
+        const data = await response.json();
+        setPreviewMenuItems(data.menuItems || {});
+      }
+    } catch (error) {
+      console.error('Failed to fetch preview menu items:', error);
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  const handleCategoryAssignment = async (menuItemId: number, categoryId: number, action: 'add' | 'remove') => {
+    try {
+      const url = `/api/admin/menu-items/${menuItemId}/display-categories`;
+      const method = action === 'add' ? 'POST' : 'DELETE';
+      const body = action === 'add' ? JSON.stringify({ displayCategoryId: categoryId }) : undefined;
+      const queryParam = action === 'remove' ? `?displayCategoryId=${categoryId}` : '';
+
+      const response = await fetch(url + queryParam, {
+        method,
+        headers: action === 'add' ? { 'Content-Type': 'application/json' } : {},
+        body,
+      });
+
+      if (response.ok) {
+        await fetchMenuItemCategories(menuItemId);
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 3000);
+      } else {
+        const errorData = await response.json();
+        setErrorMessage(errorData.error || 'Failed to update category assignment');
+        setShowError(true);
+        setTimeout(() => setShowError(false), 3000);
+      }
+    } catch (error) {
+      setErrorMessage('Failed to update category assignment. Please try again.');
+      setShowError(true);
+      setTimeout(() => setShowError(false), 3000);
+    }
+  };
+
   // Update temp message when disabled message changes
   useEffect(() => {
     setTempMessage(disabledMessage);
@@ -255,8 +465,12 @@ export default function AdminPage() {
     if (isAuthenticated) {
       fetchMenuSyncStatus();
       fetchMenuItems();
+      fetchDisplayCategories();
+      if (activeTab === 'preview') {
+        fetchPreviewMenuItems();
+      }
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, activeTab]);
 
   if (sessionLoading) {
     return (
@@ -350,6 +564,26 @@ export default function AdminPage() {
               >
                 Menu Management
               </button>
+              <button
+                onClick={() => setActiveTab('categories')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'categories'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Display Categories
+              </button>
+              <button
+                onClick={() => setActiveTab('preview')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'preview'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Menu Preview
+              </button>
             </nav>
           </div>
 
@@ -441,7 +675,7 @@ export default function AdminPage() {
                   </div>
                 </div>
               </div>
-            ) : (
+            ) : activeTab === 'menu' ? (
               <div className="space-y-8">
                 {/* Menu Sync Section */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
@@ -450,12 +684,7 @@ export default function AdminPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-gray-600">
-                          Last sync: {lastMenuSync ? new Date(lastMenuSync).toLocaleString() : 'Never'}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Status: <span className={`font-medium ${menuSyncStatus?.success ? 'text-green-600' : 'text-red-600'}`}>
-                            {menuSyncStatus?.success ? 'Success' : 'Failed'}
-                          </span>
+                          Sync menu items from Square to update the website.
                         </p>
                       </div>
                       <button
@@ -513,19 +742,45 @@ export default function AdminPage() {
                                 {(items as any[]).map((item: any, index: number) => (
                                   <div key={item.id || index} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-md">
                                     <div className="flex-1">
-                                      <h4 className="font-medium text-gray-800">{item.name}</h4>
+                                      <h4 className="font-medium text-gray-800">
+                                        {item.itemData?.name || item.name || 'Unnamed Item'}
+                                      </h4>
                                       <p className="text-sm text-gray-600">
-                                        ${(item.price || 0).toFixed(2)}
+                                        ${(item.itemData?.variations?.[0]?.itemVariationData?.priceMoney?.amount 
+                                          ? (item.itemData.variations[0].itemVariationData.priceMoney.amount / 100).toFixed(2)
+                                          : (item.price || 0).toFixed(2)
+                                        )}
                                       </p>
+                                      {item.displayCategories && item.displayCategories.length > 0 ? (
+                                        <p className="text-xs text-blue-600 font-medium">
+                                          Displayed as: {item.displayCategories.join(', ')}
+                                        </p>
+                                      ) : (
+                                        <p className="text-xs text-gray-400 italic">
+                                          Not displayed
+                                        </p>
+                                      )}
                                     </div>
                                     <div className="flex items-center space-x-3">
-                                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                        item.isSoldOut 
-                                          ? 'bg-red-100 text-red-700'
-                                          : 'bg-green-100 text-green-700'
-                                      }`}>
-                                        {item.isSoldOut ? 'Sold Out' : 'Available'}
-                                      </span>
+                                      {item.isSoldOut && (
+                                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">
+                                          Sold Out
+                                        </span>
+                                      )}
+                                      <button
+                                        onClick={async () => {
+                                          await fetchMenuItemCategories(item.dbId);
+                                          setShowCategoryAssignment(item.dbId);
+                                        }}
+                                        disabled={loadingCategoryAssignment}
+                                        className={`px-3 py-1 text-xs font-medium rounded focus:outline-none focus:ring-2 ${
+                                          loadingCategoryAssignment
+                                            ? 'bg-gray-400 cursor-not-allowed'
+                                            : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+                                        } text-white`}
+                                      >
+                                        {loadingCategoryAssignment ? 'Loading...' : 'Categories'}
+                                      </button>
                                       <button
                                         onClick={() => handleItemToggle(item.dbId)}
                                         disabled={updatingItem === item.dbId}
@@ -552,6 +807,329 @@ export default function AdminPage() {
                             <p>No menu items found. Try syncing the menu first.</p>
                           </div>
                         )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Category Assignment Modal */}
+                {showCategoryAssignment !== null && (
+                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-lg">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                        Assign Display Categories
+                      </h3>
+                      <div className="space-y-4">
+                        {loadingCategoryAssignment ? (
+                          <div className="flex items-center justify-center py-8">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                            <span className="ml-2 text-gray-600">Loading category assignments...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-700 mb-2">Available Categories</h4>
+                              <div className="space-y-2 max-h-40 overflow-y-auto">
+                                {displayCategories.filter(cat => cat.isActive).map((category) => {
+                                  const isAssigned = menuItemCategories[showCategoryAssignment]?.some(
+                                    assigned => assigned.id === category.id
+                                  );
+                                  return (
+                                    <div key={category.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                                      <span className="text-sm text-gray-700">{category.name}</span>
+                                      <button
+                                        onClick={() => handleCategoryAssignment(
+                                          showCategoryAssignment,
+                                          category.id,
+                                          isAssigned ? 'remove' : 'add'
+                                        )}
+                                        className={`px-2 py-1 text-xs font-medium rounded ${
+                                          isAssigned
+                                            ? 'bg-red-600 text-white hover:bg-red-700'
+                                            : 'bg-green-600 text-white hover:bg-green-700'
+                                        }`}
+                                      >
+                                        {isAssigned ? 'Remove' : 'Add'}
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-700 mb-2">Assigned Categories</h4>
+                              <div className="space-y-2 max-h-32 overflow-y-auto">
+                                {menuItemCategories[showCategoryAssignment]?.length > 0 ? (
+                                  menuItemCategories[showCategoryAssignment].map((category) => (
+                                    <div key={category.id} className="flex items-center justify-between p-2 bg-blue-50 rounded">
+                                      <span className="text-sm text-gray-700">{category.name}</span>
+                                      <span className="text-xs text-blue-600">Assigned</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-sm text-gray-500 italic">No categories assigned</p>
+                                )}
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      
+                      <div className="flex justify-end mt-4">
+                        <button
+                          onClick={() => setShowCategoryAssignment(null)}
+                          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : activeTab === 'categories' ? (
+              <div className="space-y-8">
+                {/* Display Categories Management */}
+                <div className="bg-white border border-gray-200 rounded-lg">
+                  <div className="p-6 border-b border-gray-200">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h2 className="text-xl font-semibold text-gray-800 mb-2">Display Categories</h2>
+                        <p className="text-sm text-gray-600">
+                          Create and manage categories for displaying menu items on the website.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setShowCategoryForm(true);
+                          setEditingCategory(null);
+                          setCategoryForm({ name: '', description: '', displayOrder: 0 });
+                        }}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        Add Category
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="p-6">
+                    {loadingCategories ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        <span className="ml-2 text-gray-600">Loading categories...</span>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {displayCategories.map((category) => (
+                          <div key={category.id} className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-md">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-800">{category.name}</h4>
+                              {category.description && (
+                                <p className="text-sm text-gray-600 mt-1">{category.description}</p>
+                              )}
+                              <p className="text-xs text-gray-500 mt-1">
+                                Order: {category.displayOrder} | Status: {category.isActive ? 'Active' : 'Inactive'}
+                              </p>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                category.isActive 
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-red-100 text-red-700'
+                              }`}>
+                                {category.isActive ? 'Active' : 'Inactive'}
+                              </span>
+                              <button
+                                onClick={() => handleCategoryToggle(category.id)}
+                                disabled={updatingCategory === category.id}
+                                className={`px-3 py-1 text-xs font-medium rounded focus:outline-none focus:ring-2 ${
+                                  updatingCategory === category.id
+                                    ? 'bg-gray-400 cursor-not-allowed'
+                                    : category.isActive 
+                                    ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
+                                    : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+                                } text-white`}
+                              >
+                                {updatingCategory === category.id ? 'Updating...' : (category.isActive ? 'Deactivate' : 'Activate')}
+                              </button>
+                              <button
+                                onClick={() => handleCategoryEdit(category)}
+                                className="px-3 py-1 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleCategoryDelete(category.id)}
+                                disabled={updatingCategory === category.id}
+                                className={`px-3 py-1 text-xs font-medium rounded focus:outline-none focus:ring-2 ${
+                                  updatingCategory === category.id
+                                    ? 'bg-gray-400 cursor-not-allowed'
+                                    : 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
+                                } text-white`}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        {displayCategories.length === 0 && (
+                          <div className="text-center py-12 text-gray-500">
+                            <p>No display categories found. Create your first category to get started.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Category Form Modal */}
+                {showCategoryForm && (
+                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                        {editingCategory ? 'Edit Category' : 'Add New Category'}
+                      </h3>
+                      <form onSubmit={handleCategorySubmit} className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Category Name
+                          </label>
+                          <input
+                            type="text"
+                            value={categoryForm.name}
+                            onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+                            required
+                            maxLength={100}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Description (Optional)
+                          </label>
+                          <textarea
+                            value={categoryForm.description}
+                            onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+                            rows={3}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Display Order
+                          </label>
+                          <input
+                            type="number"
+                            value={categoryForm.displayOrder}
+                            onChange={(e) => setCategoryForm({ ...categoryForm, displayOrder: parseInt(e.target.value) || 0 })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+                            min="0"
+                          />
+                        </div>
+                        <div className="flex justify-end space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowCategoryForm(false);
+                              setEditingCategory(null);
+                              setCategoryForm({ name: '', description: '', displayOrder: 0 });
+                            }}
+                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={!categoryForm.name.trim() || updatingCategory !== null}
+                            className={`px-4 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 ${
+                              !categoryForm.name.trim() || updatingCategory !== null
+                                ? 'bg-gray-400 cursor-not-allowed'
+                                : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+                            } text-white`}
+                          >
+                            {updatingCategory !== null ? 'Saving...' : (editingCategory ? 'Update' : 'Create')}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {/* Menu Preview */}
+                <div className="bg-white border border-gray-200 rounded-lg">
+                  <div className="p-6 border-b border-gray-200">
+                    <h2 className="text-xl font-semibold text-gray-800 mb-2">Menu Preview</h2>
+                    <p className="text-sm text-gray-600">
+                      This is how your menu currently appears to customers on the website.
+                    </p>
+                  </div>
+                  
+                  <div className="p-6">
+                    {loadingPreview ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        <span className="ml-2 text-gray-600">Loading menu preview...</span>
+                      </div>
+                    ) : (
+                      <div className="bg-white border border-gray-200 rounded-lg p-6">
+                        <div className="space-y-6">
+                          {Object.entries(previewMenuItems).map(([category, items]) => (
+                            <div key={category} className="space-y-3">
+                              <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2">
+                                {category}
+                              </h3>
+                              
+                              <div className="space-y-2">
+                                {(items as any[]).map((item, index) => (
+                                  <div 
+                                    key={index} 
+                                    className={`flex justify-between items-center p-3 rounded border ${
+                                      item.isSoldOut ? 'bg-gray-50 border-gray-300' : 'bg-gray-50'
+                                    }`}
+                                  >
+                                    <div>
+                                      <h4 className={`font-medium ${item.isSoldOut ? 'text-gray-600' : 'text-gray-900'}`}>
+                                        {item.name || 'Unnamed Item'}
+                                      </h4>
+                                      {item.isSoldOut && (
+                                        <p className="text-red-500 text-xs mt-1 font-medium">
+                                          Sold Out
+                                        </p>
+                                      )}
+                                      {item.description && (
+                                        <p className={`text-sm ${item.isSoldOut ? 'text-gray-500' : 'text-gray-600'}`}>
+                                          {item.description}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <span className={`font-medium ${item.isSoldOut ? 'text-gray-600' : 'text-gray-900'}`}>
+                                      ${(item.itemData?.variations?.[0]?.itemVariationData?.priceMoney?.amount 
+                                        ? (item.itemData.variations[0].itemVariationData.priceMoney.amount / 100).toFixed(2)
+                                        : '0.00'
+                                      )}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                              
+                              {(items as any[]).length === 0 && (
+                                <div className="text-center py-4 text-gray-500">
+                                  <p>No items in this category</p>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          
+                          {Object.keys(previewMenuItems).length === 0 && (
+                            <div className="text-center py-12 text-gray-500">
+                              <p>No display categories with items found. Create display categories and assign menu items to them.</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>

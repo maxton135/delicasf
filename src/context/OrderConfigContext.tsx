@@ -30,7 +30,7 @@ export function OrderConfigProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/api/admin/order-config');
+      const response = await fetch('/api/order-config');
       
       if (!response.ok) {
         throw new Error(`Failed to fetch config: ${response.status}`);
@@ -78,7 +78,7 @@ export function OrderConfigProvider({ children }: { children: ReactNode }) {
     
     const interval = setInterval(async () => {
       try {
-        const response = await fetch('/api/admin/order-config');
+        const response = await fetch('/api/order-config');
         if (response.ok) {
           const config = await response.json();
           

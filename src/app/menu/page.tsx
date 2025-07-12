@@ -88,6 +88,7 @@ export default function Menu() {
     }
   };
 
+
   return (
     <Layout>
       <div className="py-16">
@@ -120,9 +121,20 @@ export default function Menu() {
         {/* Menu Sections */}
         <div className="max-w-6xl mx-auto px-4 space-y-20">
           {loading ? (
-            <div className="text-center text-[#f2ede3]">Loading menu items...</div>
+            <div className="text-center text-[#f2ede3]">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#9b804a] mx-auto mb-4"></div>
+              Loading menu items...
+            </div>
           ) : error ? (
-            <div className="text-center text-red-500">{error}</div>
+            <div className="text-center">
+              <div className="text-red-500 mb-4">{error}</div>
+              <div className="text-[#f2ede3] text-sm">Please refresh the page to try again.</div>
+            </div>
+          ) : Object.keys(menuItems).length === 0 ? (
+            <div className="text-center text-[#f2ede3]">
+              <div className="mb-4">No menu items found. The menu may be being updated.</div>
+              <div className="text-sm">Please refresh the page to try again.</div>
+            </div>
           ) : (
             Object.entries(menuItems).map(([category, items]) => {
               const isComboCategory = category === "Combos";
@@ -147,19 +159,28 @@ export default function Menu() {
                         <div 
                           key={index} 
                           className={`
-                            text-left p-4 rounded-lg cursor-pointer transition-all duration-300
-                            ${isSelected 
-                              ? 'bg-[#9b804a]/20 border-2 border-[#9b804a] shadow-lg' 
-                              : 'bg-[#2a2a2a] hover:bg-[#3a3a3a] border-2 border-transparent'
+                            text-left p-4 rounded-lg transition-all duration-300
+                            ${(item as any).isSoldOut 
+                              ? 'bg-[#2a2a2a] border-2 border-[#4a4a4a] cursor-not-allowed' 
+                              : isSelected 
+                              ? 'bg-[#9b804a]/20 border-2 border-[#9b804a] shadow-lg cursor-pointer' 
+                              : 'bg-[#2a2a2a] hover:bg-[#3a3a3a] border-2 border-transparent cursor-pointer'
                             }
                           `}
-                          onClick={() => handleItemClick(item.itemData.name)}
+                          onClick={() => !(item as any).isSoldOut && handleItemClick(item.itemData.name)}
                         >
                           <div className="flex items-center justify-between">
-                            <h3 className={`${playfair.className} text-xl text-[#f2ede3]`}>
-                              {item.itemData.name}
-                            </h3>
-                            {isSelected && !isComboCategory && ordersEnabled && (
+                            <div>
+                              <h3 className={`${playfair.className} text-xl ${(item as any).isSoldOut ? 'text-[#f2ede3]/60' : 'text-[#f2ede3]'}`}>
+                                {item.itemData.name}
+                              </h3>
+                              {(item as any).isSoldOut && (
+                                <p className="text-red-400 text-xs mt-1 font-medium">
+                                  Sold Out
+                                </p>
+                              )}
+                            </div>
+                            {isSelected && !isComboCategory && ordersEnabled && !(item as any).isSoldOut && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -176,7 +197,7 @@ export default function Menu() {
                                 <PlusIcon className="w-5 h-5" />
                               </button>
                             )}
-                            {isSelected && isComboCategory && hasSelectedComboType && ordersEnabled && (
+                            {isSelected && isComboCategory && hasSelectedComboType && ordersEnabled && !(item as any).isSoldOut && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -194,12 +215,12 @@ export default function Menu() {
                               </button>
                             )}
                           </div>
-                          <p className="text-[#f2ede3]/70 text-sm mt-2">
+                          <p className={`text-sm mt-2 ${(item as any).isSoldOut ? 'text-[#f2ede3]/40' : 'text-[#f2ede3]/70'}`}>
                             {item.itemData.description}
                           </p>
                           
                           {/* Combo Options Display */}
-                          {isSelected && isComboCategory && (
+                          {isSelected && isComboCategory && !(item as any).isSoldOut && (
                             <div className="mt-4 space-y-3">
                               <p className="text-[#9b804a] text-sm font-medium">
                                 Choose your combo type:
@@ -244,9 +265,12 @@ export default function Menu() {
                             </div>
                           )}
                           
-                          {isSelected && !isComboCategory && (
+                          {isSelected && !isComboCategory && !(item as any).isSoldOut && (
                             <p className="text-[#9b804a] text-sm mt-2 font-medium">
-                              {ordersEnabled ? 'Click the + button to add to cart' : 'Online ordering is currently disabled'}
+                              {ordersEnabled 
+                                ? 'Click the + button to add to cart' 
+                                : 'Online ordering is currently disabled'
+                              }
                             </p>
                           )}
                         </div>

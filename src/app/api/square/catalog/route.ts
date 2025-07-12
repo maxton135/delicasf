@@ -35,14 +35,6 @@ function convertToPlainObject(obj: any): any {
   return obj;
 }
 
-const categoryToIdMapping = {
-  "Deli": "HQ6IE4GLIF57OJEE4OQCELM5",
-  "Sushi": "FKZBKY23IQZHT7LCD4HZL7SD",
-  "Salads": "ZO5JJUKO2LOG7OHTPFKTZ442",
-  "Soups": "F6GVCTDXOAOF4TUNGBWYAPFY",
-  "Combos": "AB4PUQ5RJEEEZHC3B7GTTJKK"
-}
-
 export async function GET() {
   try {
     // Get environment variables with validation
@@ -62,8 +54,10 @@ export async function GET() {
       token: accessToken,
     });
 
+    // Fetch all catalog items without category filtering
     const response = await client.catalog.searchItems({
-      categoryIds: Object.values(categoryToIdMapping),
+      limit: 100,
+      sortOrder: 'ASC'
     });
 
     // Convert the response to a plain object that can be serialized
@@ -72,30 +66,31 @@ export async function GET() {
     // Create an object to store items by category
     const itemsByCategory: { [key: string]: any[] } = {};
 
-    // Initialize empty arrays for each category
-    Object.keys(categoryToIdMapping).forEach(category => {
-      itemsByCategory[category] = [];
-    });
-
-    // Organize items by category
+    // Organize items by category (using category names from itemData if available)
     if (jsonResponse.items) {
       jsonResponse.items.forEach((item: any) => {
-        const itemCategories = item.itemData.categories;
-        itemCategories.forEach((category: { id: string }) => {
-          const categoryId = category.id;
-          if (Object.values(categoryToIdMapping).includes(categoryId)) {
-            const categoryName = Object.keys(categoryToIdMapping).find(
-              key => categoryToIdMapping[key as keyof typeof categoryToIdMapping] === categoryId
-            );
-            if (categoryName) {
-              itemsByCategory[categoryName].push(item);
+        if (item.itemData && item.itemData.categories && item.itemData.categories.length > 0) {
+          // Item has categories - use the category ID as the category name for now
+          // TODO: In a future update, we can enhance this to fetch actual category names
+          item.itemData.categories.forEach((category: { id: string }) => {
+            const categoryName = `Category ${category.id}`;
+            if (!itemsByCategory[categoryName]) {
+              itemsByCategory[categoryName] = [];
             }
+            itemsByCategory[categoryName].push(item);
+          });
+        } else {
+          // Item has no categories
+          if (!itemsByCategory['Uncategorized']) {
+            itemsByCategory['Uncategorized'] = [];
           }
-        });
+          itemsByCategory['Uncategorized'].push(item);
+        }
       });
     }
 
-    console.log('Items organized by category:', itemsByCategory);
+    console.log('All items organized by category:', itemsByCategory);
+    console.log('Total categories found:', Object.keys(itemsByCategory).length);
 
     return NextResponse.json(itemsByCategory);
   } catch (error) {

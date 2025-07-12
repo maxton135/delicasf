@@ -2,26 +2,51 @@ import { NextRequest, NextResponse } from 'next/server';
 import { menuSyncService } from '../../../../db/menuSyncService';
 import { menuItemService } from '../../../../db/operations';
 import { withAdminAuth } from '@/lib/adminAuth';
+import { getDatabase } from '../../../../db/connection';
+import { displayCategories, menuItemDisplayCategories } from '../../../../db/schema';
+import { eq } from 'drizzle-orm';
 
 export const GET = withAdminAuth(async () => {
   try {
+    const db = getDatabase();
+    
     // Get the organized menu data (like customer menu but with sold-out items)
     const cachedMenuData = await menuSyncService.getCachedMenuData();
     const allMenuItems = await menuItemService.getAllMenuItems();
     
-    // Add sold-out status to menu items
+    // Get all display category assignments
+    const displayCategoryAssignments = await db
+      .select({
+        menuItemId: menuItemDisplayCategories.menuItemId,
+        categoryName: displayCategories.name,
+      })
+      .from(menuItemDisplayCategories)
+      .innerJoin(displayCategories, eq(menuItemDisplayCategories.displayCategoryId, displayCategories.id))
+      .where(eq(displayCategories.isActive, true));
+    
+    // Create a map of menu item ID to display categories
+    const itemCategoryMap: { [key: number]: string[] } = {};
+    displayCategoryAssignments.forEach(assignment => {
+      if (!itemCategoryMap[assignment.menuItemId]) {
+        itemCategoryMap[assignment.menuItemId] = [];
+      }
+      itemCategoryMap[assignment.menuItemId].push(assignment.categoryName);
+    });
+    
+    // Add sold-out status and display categories to menu items
     const menuWithSoldOutStatus: { [key: string]: any[] } = {};
     
     Object.entries(cachedMenuData).forEach(([category, items]) => {
       menuWithSoldOutStatus[category] = items.map(item => {
         // Find the database item to get sold-out status
         const dbItem = allMenuItems.find(dbItem => dbItem.squareId === item.id);
-        
+        const displayCategories = dbItem?.id ? (itemCategoryMap[dbItem.id] || []) : [];
         
         return {
           ...item,
           isSoldOut: dbItem?.isSoldOut || false,
           dbId: dbItem?.id || null, // Include database ID for admin operations
+          displayCategories: displayCategories, // Add display categories
         };
       });
     });

@@ -26,7 +26,6 @@ interface MenuContextType {
   loading: boolean;
   error: string | null;
   syncStatus: SyncStatus | null;
-  refreshMenu: () => Promise<void>;
 }
 
 const MenuContext = createContext<MenuContextType | undefined>(undefined);
@@ -73,16 +72,12 @@ export function MenuProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const refreshMenu = async () => {
-    await fetchMenuItems();
-  };
-
   useEffect(() => {
     fetchMenuItems();
   }, []);
 
   return (
-    <MenuContext.Provider value={{ menuItems, loading, error, syncStatus, refreshMenu }}>
+    <MenuContext.Provider value={{ menuItems, loading, error, syncStatus }}>
       {children}
     </MenuContext.Provider>
   );
