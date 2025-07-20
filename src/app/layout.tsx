@@ -4,7 +4,6 @@ import './globals.css';
 import { MenuProvider } from '../context/MenuContext';
 import { CartProvider } from '../context/CartContext';
 import { OrderConfigProvider } from '../context/OrderConfigContext';
-import CartButton from '../components/CartButton';
 import { initializeApp } from '../lib/initializeApp';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -29,7 +28,6 @@ export default function RootLayout({
           <MenuProvider>
             <CartProvider>
               {children}
-              <CartButton />
             </CartProvider>
           </MenuProvider>
         </OrderConfigProvider>

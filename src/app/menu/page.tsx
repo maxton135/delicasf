@@ -14,7 +14,6 @@ export default function Menu() {
   const { ordersEnabled, disabledMessage } = useOrderConfig();
   const [clickedButtons, setClickedButtons] = useState<Set<string>>(new Set());
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
-  const [selectedComboTypes, setSelectedComboTypes] = useState<Record<string, string>>({});
 
   const handleAddToCart = (itemData: any) => {
     addItem(itemData);
@@ -31,48 +30,8 @@ export default function Menu() {
 
   const handleItemClick = (itemName: string) => {
     setSelectedItem(selectedItem === itemName ? null : itemName);
-    // Clear combo selections when deselecting an item
-    if (selectedItem === itemName) {
-      setSelectedComboTypes(prev => {
-        const newSelections = { ...prev };
-        delete newSelections[itemName];
-        return newSelections;
-      });
-    }
   };
 
-  const handleComboTypeSelect = (itemName: string, comboTypeName: string, comboTypeValue: string) => {
-    setSelectedComboTypes(prev => ({
-      ...prev,
-      [itemName]: comboTypeValue
-    }));
-  };
-
-  const getComboOptions = (itemData: any) => {
-    const variation = itemData.variations?.[0]?.customAttributeValues;
-    if (!variation) {
-      return [];
-    }
-    const comboTypes = Object.values(variation);
-    console.log("combotypes", comboTypes);
-    return comboTypes;
-  };
-
-  const parseComboString = (comboString: string) => {
-    // Split by '+' and format each part
-    return comboString
-      .split('+')
-      .map(part => {
-        // Find the first letter (category name starts with a letter)
-        const match = part.match(/^(\d+)([A-Za-z]+)$/);
-        if (match) {
-          const [, number, category] = match;
-          return `${number} ${category}`;
-        }
-        return part; // Return as-is if it doesn't match the expected format
-      })
-      .join(' + ');
-  };
 
   const scrollToCategory = (categoryId: string) => {
     const element = document.getElementById(categoryId);
@@ -137,8 +96,6 @@ export default function Menu() {
             </div>
           ) : (
             Object.entries(menuItems).map(([category, items]) => {
-              const isComboCategory = category === "Combos";
-              
               return (
                 <div key={category} id={category.toLowerCase()}>
                   <div className="flex items-center mb-8">
@@ -151,9 +108,6 @@ export default function Menu() {
                     {items.map((item, index) => {
                       const isClicked = clickedButtons.has(item.itemData.name);
                       const isSelected = selectedItem === item.itemData.name;
-                      const comboOptions = isComboCategory ? getComboOptions(item.itemData) : [];
-                      const selectedComboType = selectedComboTypes[item.itemData.name];
-                      const hasSelectedComboType = selectedComboType && selectedComboType !== '';
                       
                       return (
                         <div 
@@ -180,24 +134,7 @@ export default function Menu() {
                                 </p>
                               )}
                             </div>
-                            {isSelected && !isComboCategory && ordersEnabled && !(item as any).isSoldOut && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleAddToCart(item.itemData);
-                                }}
-                                className={`
-                                  p-2 rounded-full border-2 border-[#9b804a] text-[#9b804a] 
-                                  hover:bg-[#9b804a] hover:text-[#f2ede3] 
-                                  transition-all duration-300 ease-in-out
-                                  ${isClicked ? 'animate-bounce scale-110' : ''}
-                                  focus:outline-none focus:ring-2 focus:ring-[#9b804a] focus:ring-opacity-50
-                                `}
-                              >
-                                <PlusIcon className="w-5 h-5" />
-                              </button>
-                            )}
-                            {isSelected && isComboCategory && hasSelectedComboType && ordersEnabled && !(item as any).isSoldOut && (
+                            {isSelected && ordersEnabled && !(item as any).isSoldOut && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -219,53 +156,7 @@ export default function Menu() {
                             {item.itemData.description}
                           </p>
                           
-                          {/* Combo Options Display */}
-                          {isSelected && isComboCategory && !(item as any).isSoldOut && (
-                            <div className="mt-4 space-y-3">
-                              <p className="text-[#9b804a] text-sm font-medium">
-                                Choose your combo type:
-                              </p>
-                              <div className="space-y-2">
-                                {comboOptions
-                                  .filter((option: any) => option.name && option.name.includes('combo_type'))
-                                  .map((option: any, optionIndex: number) => {
-                                    const isSelected = selectedComboType === option.stringValue;
-                                    return (
-                                      <div 
-                                        key={optionIndex} 
-                                        className={`
-                                          p-3 rounded border cursor-pointer transition-all duration-200
-                                          ${isSelected 
-                                            ? 'bg-[#9b804a]/30 border-[#9b804a] shadow-md' 
-                                            : 'bg-[#1a1a1a] border-[#3a3a3a] hover:bg-[#2a2a2a] hover:border-[#9b804a]/50'
-                                          }
-                                        `}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleComboTypeSelect(item.itemData.name, option.name, option.stringValue);
-                                        }}
-                                      >
-                                        <p className="text-[#f2ede3] font-medium text-sm">
-                                          {parseComboString(option.stringValue)}
-                                        </p>
-                                        {isSelected && (
-                                          <div className="mt-2 text-[#9b804a] text-xs font-medium">
-                                            ✓ Selected
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                              </div>
-                              {!hasSelectedComboType && (
-                                <p className="text-[#f2ede3]/50 text-xs italic">
-                                  Please select a combo type to add to cart
-                                </p>
-                              )}
-                            </div>
-                          )}
-                          
-                          {isSelected && !isComboCategory && !(item as any).isSoldOut && (
+                          {isSelected && !(item as any).isSoldOut && (
                             <p className="text-[#9b804a] text-sm mt-2 font-medium">
                               {ordersEnabled 
                                 ? 'Click the + button to add to cart' 
