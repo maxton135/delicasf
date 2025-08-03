@@ -1,10 +1,105 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/db/connection';
-import { displayCategories, menuItemDisplayCategories, menuItems } from '@/db/schema';
+import { 
+  displayCategories, 
+  menuItemDisplayCategories, 
+  menuItems, 
+  comboMenuItems, 
+  comboCategories,
+  menuItemComboCategories
+} from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { menuSyncService } from '../../../db/menuSyncService';
 
 const db = getDatabase();
+
+// Helper function to get combo information for a menu item
+async function getComboInfo(menuItemId: number) {
+  try {
+    // Check if this menu item is a combo (has required combo categories)
+    const comboRequirements = await db
+      .select({
+        categoryId: comboCategories.id,
+        categoryName: comboCategories.name,
+        categoryDescription: comboCategories.description,
+        isRequired: comboMenuItems.isRequired,
+        displayOrder: comboMenuItems.displayOrder,
+      })
+      .from(comboMenuItems)
+      .innerJoin(comboCategories, eq(comboMenuItems.comboCategoryId, comboCategories.id))
+      .where(
+        and(
+          eq(comboMenuItems.menuItemId, menuItemId),
+          eq(comboCategories.isActive, true)
+        )
+      )
+      .orderBy(comboMenuItems.displayOrder, comboCategories.name);
+
+    if (comboRequirements.length === 0) {
+      return null; // Not a combo item
+    }
+
+    // For each combo category, get the available items
+    const comboOptions: any = {};
+    for (const requirement of comboRequirements) {
+      const availableItems = await db
+        .select({
+          id: menuItems.id,
+          squareId: menuItems.squareId,
+          name: menuItems.name,
+          description: menuItems.description,
+          rawSquareData: menuItems.rawSquareData,
+        })
+        .from(menuItemComboCategories)
+        .innerJoin(menuItems, eq(menuItemComboCategories.menuItemId, menuItems.id))
+        .where(
+          and(
+            eq(menuItemComboCategories.comboCategoryId, requirement.categoryId),
+            eq(menuItems.isActive, true),
+            eq(menuItems.isSoldOut, false)
+          )
+        )
+        .orderBy(menuItems.name);
+
+      // Format the available items
+      const formattedItems = availableItems.map(item => {
+        let squareData = {};
+        if (item.rawSquareData) {
+          try {
+            squareData = JSON.parse(item.rawSquareData);
+          } catch (e) {
+            console.warn(`Failed to parse raw Square data for combo item ${item.id}:`, e);
+          }
+        }
+
+        return {
+          id: item.squareId,
+          dbId: item.id,
+          name: item.name,
+          description: item.description,
+          ...squareData,
+        };
+      });
+
+      comboOptions[requirement.categoryName] = {
+        id: requirement.categoryId,
+        name: requirement.categoryName,
+        description: requirement.categoryDescription,
+        isRequired: requirement.isRequired,
+        displayOrder: requirement.displayOrder,
+        items: formattedItems,
+      };
+    }
+
+    return {
+      isCombo: true,
+      comboCategories: comboOptions,
+    };
+  } catch (error) {
+    console.error('Error fetching combo info:', error);
+    return null;
+  }
+}
 
 export async function GET() {
   try {
@@ -41,25 +136,32 @@ export async function GET() {
         )
         .orderBy(menuItems.displayOrder, menuItems.name);
 
-      // Parse raw Square data and format items
-      const formattedItems = categoryItems.map(item => {
-        let squareData = {};
-        if (item.rawSquareData) {
-          try {
-            squareData = JSON.parse(item.rawSquareData);
-          } catch (e) {
-            console.warn(`Failed to parse raw Square data for item ${item.id}:`, e);
+      // Parse raw Square data and format items with combo information
+      const formattedItems = await Promise.all(
+        categoryItems.map(async (item) => {
+          let squareData = {};
+          if (item.rawSquareData) {
+            try {
+              squareData = JSON.parse(item.rawSquareData);
+            } catch (e) {
+              console.warn(`Failed to parse raw Square data for item ${item.id}:`, e);
+            }
           }
-        }
 
-        return {
-          id: item.squareId,
-          name: item.name,
-          description: item.description,
-          isSoldOut: item.isSoldOut,
-          ...squareData,
-        };
-      });
+          // Get combo information for this item
+          const comboInfo = await getComboInfo(item.id);
+
+          return {
+            id: item.squareId,
+            dbId: item.id,
+            name: item.name,
+            description: item.description,
+            isSoldOut: item.isSoldOut,
+            ...squareData,
+            ...(comboInfo || {}),
+          };
+        })
+      );
 
       // Only include categories that have items
       if (formattedItems.length > 0) {

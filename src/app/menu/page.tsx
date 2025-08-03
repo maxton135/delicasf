@@ -7,13 +7,16 @@ import { PlusIcon } from '@heroicons/react/24/outline';
 import { useMenu } from '../../context/MenuContext';
 import { useCart } from '../../context/CartContext';
 import { useOrderConfig } from '../../context/OrderConfigContext';
+import ComboSelectionModal from '../../components/ComboSelectionModal';
 
 export default function Menu() {
   const { menuItems, loading, error } = useMenu();
-  const { addItem } = useCart();
+  const { addItem, addComboItem } = useCart();
   const { ordersEnabled, disabledMessage } = useOrderConfig();
   const [clickedButtons, setClickedButtons] = useState<Set<string>>(new Set());
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
+  const [showComboModal, setShowComboModal] = useState(false);
+  const [selectedComboItem, setSelectedComboItem] = useState<any>(null);
 
   const handleAddToCart = (itemData: any) => {
     addItem(itemData);
@@ -30,6 +33,32 @@ export default function Menu() {
 
   const handleItemClick = (itemName: string) => {
     setSelectedItem(selectedItem === itemName ? null : itemName);
+  };
+
+  const handleComboItemClick = (item: any) => {
+    setSelectedComboItem(item);
+    setShowComboModal(true);
+  };
+
+  const handleComboConfirm = (selections: any) => {
+    if (selectedComboItem) {
+      addComboItem(selectedComboItem.itemData, selections);
+      
+      // Add animation effect
+      const buttonId = selectedComboItem.itemData.name;
+      setClickedButtons(prev => new Set(prev).add(buttonId));
+      setTimeout(() => {
+        setClickedButtons(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(buttonId);
+          return newSet;
+        });
+      }, 300);
+    }
+    
+    setShowComboModal(false);
+    setSelectedComboItem(null);
+    setSelectedItem(null);
   };
 
 
@@ -135,21 +164,33 @@ export default function Menu() {
                               )}
                             </div>
                             {isSelected && ordersEnabled && !(item as any).isSoldOut && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleAddToCart(item.itemData);
-                                }}
-                                className={`
-                                  p-2 rounded-full border-2 border-[#9b804a] text-[#9b804a] 
-                                  hover:bg-[#9b804a] hover:text-[#f2ede3] 
-                                  transition-all duration-300 ease-in-out
-                                  ${isClicked ? 'animate-bounce scale-110' : ''}
-                                  focus:outline-none focus:ring-2 focus:ring-[#9b804a] focus:ring-opacity-50
-                                `}
-                              >
-                                <PlusIcon className="w-5 h-5" />
-                              </button>
+                              (item as any).isCombo ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleComboItemClick(item);
+                                  }}
+                                  className="px-4 py-2 bg-[#9b804a] text-[#f2ede3] rounded-md hover:bg-[#9b804a]/80 transition-colors text-sm font-medium"
+                                >
+                                  Customize
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAddToCart(item.itemData);
+                                  }}
+                                  className={`
+                                    p-2 rounded-full border-2 border-[#9b804a] text-[#9b804a] 
+                                    hover:bg-[#9b804a] hover:text-[#f2ede3] 
+                                    transition-all duration-300 ease-in-out
+                                    ${isClicked ? 'animate-bounce scale-110' : ''}
+                                    focus:outline-none focus:ring-2 focus:ring-[#9b804a] focus:ring-opacity-50
+                                  `}
+                                >
+                                  <PlusIcon className="w-5 h-5" />
+                                </button>
+                              )
                             )}
                           </div>
                           <p className={`text-sm mt-2 ${(item as any).isSoldOut ? 'text-[#f2ede3]/40' : 'text-[#f2ede3]/70'}`}>
@@ -158,11 +199,21 @@ export default function Menu() {
                           
                           {isSelected && !(item as any).isSoldOut && (
                             <p className="text-[#9b804a] text-sm mt-2 font-medium">
-                              {ordersEnabled 
-                                ? 'Click the + button to add to cart' 
-                                : 'Online ordering is currently disabled'
+                              {!ordersEnabled 
+                                ? 'Online ordering is currently disabled'
+                                : (item as any).isCombo
+                                ? 'Click "Customize" to select your combo options'
+                                : 'Click the + button to add to cart'
                               }
                             </p>
+                          )}
+                          
+                          {(item as any).isCombo && (
+                            <div className="mt-2">
+                              <span className="inline-block px-2 py-1 bg-[#9b804a]/20 text-[#9b804a] text-xs rounded-full font-medium">
+                                Combo
+                              </span>
+                            </div>
                           )}
                         </div>
                       );
@@ -174,6 +225,19 @@ export default function Menu() {
           )}
         </div>
       </div>
+
+      {/* Combo Selection Modal */}
+      {selectedComboItem && (
+        <ComboSelectionModal
+          isOpen={showComboModal}
+          onClose={() => {
+            setShowComboModal(false);
+            setSelectedComboItem(null);
+          }}
+          menuItem={selectedComboItem}
+          onConfirm={handleComboConfirm}
+        />
+      )}
     </Layout>
   );
 } 

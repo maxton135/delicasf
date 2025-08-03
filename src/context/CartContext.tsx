@@ -10,14 +10,27 @@ interface MenuItem {
   };
 }
 
+interface ComboSelection {
+  [categoryName: string]: {
+    id: string;
+    dbId: number;
+    name: string;
+    description?: string;
+    itemData?: any;
+  };
+}
+
 interface CartItem {
   itemData: MenuItem['itemData'];
   quantity: number;
+  isCombo?: boolean;
+  comboSelections?: ComboSelection;
 }
 
 interface CartContextType {
   items: CartItem[];
   addItem: (itemData: MenuItem['itemData']) => void;
+  addComboItem: (itemData: MenuItem['itemData'], comboSelections: ComboSelection) => void;
   removeItem: (name: string) => void;
   clearCart: () => void;
   totalItems: number;
@@ -30,15 +43,29 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addItem = (itemData: MenuItem['itemData']) => {
     setItems(currentItems => {
-      const existingItem = currentItems.find(item => item.itemData.name === itemData.name);
+      const existingItem = currentItems.find(item => 
+        item.itemData.name === itemData.name && !item.isCombo
+      );
       if (existingItem) {
         return currentItems.map(item =>
-          item.itemData.name === itemData.name
+          item.itemData.name === itemData.name && !item.isCombo
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
       return [...currentItems, { itemData, quantity: 1 }];
+    });
+  };
+
+  const addComboItem = (itemData: MenuItem['itemData'], comboSelections: ComboSelection) => {
+    setItems(currentItems => {
+      // For combo items, always add as new item since selections might be different
+      return [...currentItems, { 
+        itemData, 
+        quantity: 1, 
+        isCombo: true, 
+        comboSelections 
+      }];
     });
   };
 
@@ -55,7 +82,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <CartContext.Provider value={{ items, addItem, removeItem, clearCart, totalItems }}>
+    <CartContext.Provider value={{ items, addItem, addComboItem, removeItem, clearCart, totalItems }}>
       {children}
     </CartContext.Provider>
   );

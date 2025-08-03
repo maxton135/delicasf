@@ -87,6 +87,37 @@ export const menuSyncStatus = sqliteTable('menu_sync_status', {
   updatedAt: text('updated_at').notNull().default(new Date().toISOString()),
 });
 
+// Combo Categories Table (Admin-defined categories like "Main", "Salad", "Soup")
+export const comboCategories = sqliteTable('combo_categories', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  description: text('description'),
+  displayOrder: integer('display_order').default(0),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: text('created_at').notNull().default(new Date().toISOString()),
+  updatedAt: text('updated_at').notNull().default(new Date().toISOString()),
+});
+
+// Junction table for menu items and combo categories (many-to-many)
+// This links regular menu items to combo categories (e.g., "Chicken Sandwich" -> "Main")
+export const menuItemComboCategories = sqliteTable('menu_item_combo_categories', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  menuItemId: integer('menu_item_id').notNull().references(() => menuItems.id, { onDelete: 'cascade' }),
+  comboCategoryId: integer('combo_category_id').notNull().references(() => comboCategories.id, { onDelete: 'cascade' }),
+  createdAt: text('created_at').notNull().default(new Date().toISOString()),
+});
+
+// Combo Menu Items Table (Defines which menu items are combos and their required categories)
+// e.g., "#1: Main, Salad & Soup" requires categories: "Main", "Salad", "Soup"
+export const comboMenuItems = sqliteTable('combo_menu_items', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  menuItemId: integer('menu_item_id').notNull().references(() => menuItems.id, { onDelete: 'cascade' }),
+  comboCategoryId: integer('combo_category_id').notNull().references(() => comboCategories.id, { onDelete: 'cascade' }),
+  isRequired: integer('is_required', { mode: 'boolean' }).notNull().default(true),
+  displayOrder: integer('display_order').default(0),
+  createdAt: text('created_at').notNull().default(new Date().toISOString()),
+});
+
 // Type exports
 export type OrderConfig = typeof orderConfig.$inferSelect;
 export type InsertOrderConfig = typeof orderConfig.$inferInsert;
@@ -111,3 +142,12 @@ export type InsertMenuItemDisplayCategory = typeof menuItemDisplayCategories.$in
 
 export type MenuSyncStatus = typeof menuSyncStatus.$inferSelect;
 export type InsertMenuSyncStatus = typeof menuSyncStatus.$inferInsert;
+
+export type ComboCategory = typeof comboCategories.$inferSelect;
+export type InsertComboCategory = typeof comboCategories.$inferInsert;
+
+export type MenuItemComboCategory = typeof menuItemComboCategories.$inferSelect;
+export type InsertMenuItemComboCategory = typeof menuItemComboCategories.$inferInsert;
+
+export type ComboMenuItem = typeof comboMenuItems.$inferSelect;
+export type InsertComboMenuItem = typeof comboMenuItems.$inferInsert;

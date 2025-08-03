@@ -61,16 +61,46 @@ export default function CartPage() {
                 {items.map((item) => {
                   const itemPrice = getItemPrice(item.itemData);
                   return (
-                    <div key={item.itemData.name} className="flex items-center justify-between py-4 border-b border-[#3a3a3a] last:border-0">
-                      <div>
-                        <h3 className={`${playfair.className} text-xl text-[#f2ede3]`}>{item.itemData.name}</h3>
-                        <p className="text-[#f2ede3]/70">Quantity: {item.quantity}</p>
-                        {item.itemData.description && (
-                          <p className="text-[#f2ede3]/50 text-sm mt-1">{item.itemData.description}</p>
-                        )}
-                        <p className="text-[#9b804a] mt-1">{formatPrice(itemPrice)} each</p>
-                      </div>
-                      <div className="flex items-center gap-2">
+                    <div key={item.itemData.name} className="py-4 border-b border-[#3a3a3a] last:border-0">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <h3 className={`${playfair.className} text-xl text-[#f2ede3]`}>{item.itemData.name}</h3>
+                            {item.isCombo && (
+                              <span className="inline-block px-2 py-1 bg-[#9b804a]/20 text-[#9b804a] text-xs rounded-full font-medium">
+                                Combo
+                              </span>
+                            )}
+                          </div>
+                          
+                          {item.isCombo && item.comboSelections && (
+                            <div className="mb-3 pl-4 border-l-2 border-[#9b804a]/30">
+                              <h4 className="text-[#9b804a] text-sm font-medium mb-2">Your Selections:</h4>
+                              <div className="space-y-1">
+                                {Object.entries(item.comboSelections).map(([categoryName, selection]) => (
+                                  <div key={categoryName} className="flex items-center space-x-2 text-sm">
+                                    <span className="text-[#f2ede3]/60 font-medium">{categoryName}:</span>
+                                    <span className="text-[#f2ede3]">{selection.name}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          <div className="flex items-center space-x-4 text-sm">
+                            <span className="text-[#f2ede3]/70">Quantity: {item.quantity}</span>
+                            <span className="text-[#9b804a] font-medium">{formatPrice(itemPrice)} each</span>
+                            <span className="text-[#f2ede3] font-medium">
+                              Total: {formatPrice(itemPrice * item.quantity)}
+                            </span>
+                          </div>
+                          
+                          {item.itemData.description && (
+                            <p className="text-[#f2ede3]/50 text-sm mt-2">{item.itemData.description}</p>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center gap-2 ml-4">
                         <button
                           onClick={() => console.log('Item details:', item.itemData)}
                           className="p-2 text-blue-500 hover:bg-blue-500/10 rounded-full transition-colors"
@@ -85,6 +115,7 @@ export default function CartPage() {
                         >
                           <TrashIcon className="w-5 h-5" />
                         </button>
+                        </div>
                       </div>
                     </div>
                   );
