@@ -18,9 +18,9 @@ export default function Menu() {
   const [showComboModal, setShowComboModal] = useState(false);
   const [selectedComboItem, setSelectedComboItem] = useState<any>(null);
 
-  const handleAddToCart = (itemData: any) => {
-    addItem(itemData);
-    const buttonId = itemData.name;
+  const handleAddToCart = (item: any) => {
+    addItem(item);
+    const buttonId = item.itemData.name;
     setClickedButtons(prev => new Set(prev).add(buttonId));
     setTimeout(() => {
       setClickedButtons(prev => {
@@ -42,7 +42,7 @@ export default function Menu() {
 
   const handleComboConfirm = (selections: any) => {
     if (selectedComboItem) {
-      addComboItem(selectedComboItem.itemData, selections);
+      addComboItem(selectedComboItem, selections);
       
       // Add animation effect
       const buttonId = selectedComboItem.itemData.name;
@@ -178,7 +178,7 @@ export default function Menu() {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleAddToCart(item.itemData);
+                                    handleAddToCart(item);
                                   }}
                                   className={`
                                     p-2 rounded-full border-2 border-[#9b804a] text-[#9b804a] 

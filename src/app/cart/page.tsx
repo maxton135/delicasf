@@ -12,8 +12,9 @@ const formatPrice = (cents: number) => {
 };
 
 // Helper function to get item price from variations
-const getItemPrice = (itemData: any) => {
-  const variation = itemData.variations?.[0];
+const getItemPrice = (item: any) => {
+  // item is now the full Square item object with id and itemData
+  const variation = item.itemData?.variations?.[0];
   return variation?.itemVariationData?.priceMoney?.amount || 0;
 };
 
@@ -23,9 +24,21 @@ export default function CartPage() {
 
   // Calculate total price
   const totalPrice = items.reduce((sum, item) => {
-    const itemPrice = getItemPrice(item.itemData);
-    return sum + (itemPrice * item.quantity);
+    if (item.isCombo && item.comboSelections) {
+      // For combo items, sum up all selections
+      return sum + Object.values(item.comboSelections).reduce((comboSum, selection) => {
+        const price = getItemPrice(selection.itemData) || getItemPrice(selection);
+        return comboSum + price;
+      }, 0) * item.quantity;
+    } else {
+      const itemPrice = getItemPrice(item.itemData);
+      return sum + (itemPrice * item.quantity);
+    }
   }, 0);
+
+  const handleProceedToCheckout = () => {
+    router.push('/checkout/review');
+  };
 
   if (totalItems === 0) {
     return (
@@ -61,11 +74,11 @@ export default function CartPage() {
                 {items.map((item) => {
                   const itemPrice = getItemPrice(item.itemData);
                   return (
-                    <div key={item.itemData.name} className="py-4 border-b border-[#3a3a3a] last:border-0">
+                    <div key={item.itemData.itemData.name} className="py-4 border-b border-[#3a3a3a] last:border-0">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-2">
-                            <h3 className={`${playfair.className} text-xl text-[#f2ede3]`}>{item.itemData.name}</h3>
+                            <h3 className={`${playfair.className} text-xl text-[#f2ede3]`}>{item.itemData.itemData.name}</h3>
                             {item.isCombo && (
                               <span className="inline-block px-2 py-1 bg-[#9b804a]/20 text-[#9b804a] text-xs rounded-full font-medium">
                                 Combo
@@ -95,8 +108,8 @@ export default function CartPage() {
                             </span>
                           </div>
                           
-                          {item.itemData.description && (
-                            <p className="text-[#f2ede3]/50 text-sm mt-2">{item.itemData.description}</p>
+                          {item.itemData.itemData.description && (
+                            <p className="text-[#f2ede3]/50 text-sm mt-2">{item.itemData.itemData.description}</p>
                           )}
                         </div>
                         
@@ -110,7 +123,7 @@ export default function CartPage() {
                           </svg>
                         </button>
                         <button
-                          onClick={() => removeItem(item.itemData.name)}
+                          onClick={() => removeItem(item.itemData.itemData.name)}
                           className="p-2 text-red-500 hover:bg-red-500/10 rounded-full transition-colors"
                         >
                           <TrashIcon className="w-5 h-5" />
@@ -127,23 +140,26 @@ export default function CartPage() {
             <div className="lg:col-span-1">
               <div className="bg-[#2a2a2a] rounded-lg p-6 sticky top-24">
                 <h2 className={`${playfair.className} text-2xl text-[#9b804a] mb-4`}>Order Summary</h2>
+                
                 <div className="space-y-4">
                   <div className="flex justify-between text-[#f2ede3]">
                     <span>Items ({totalItems})</span>
                     <span>{formatPrice(totalPrice)}</span>
                   </div>
                   <div className="border-t border-[#3a3a3a] pt-4">
-                    <div className="flex justify-between text-[#f2ede3] font-medium">
+                    <div className="flex justify-between text-[#f2ede3] font-medium text-xl">
                       <span>Total</span>
                       <span>{formatPrice(totalPrice)}</span>
                     </div>
                   </div>
+                  
                   <button
-                    className="w-full bg-[#9b804a] text-[#f2ede3] py-3 rounded hover:bg-[#8a7040] transition-colors"
-                    onClick={() => alert('Checkout functionality coming soon!')}
+                    onClick={handleProceedToCheckout}
+                    className="w-full bg-[#9b804a] text-[#f2ede3] py-3 rounded font-medium hover:bg-[#8a7040] transition-colors"
                   >
                     Proceed to Checkout
                   </button>
+                  
                   <button
                     className="w-full text-[#f2ede3]/70 hover:text-[#f2ede3] py-2 transition-colors"
                     onClick={clearCart}
