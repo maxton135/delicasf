@@ -28,7 +28,7 @@ export default function CartButton() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 20 }}
-        onClick={() => router.push('/cart')}
+        onClick={() => router.push('/checkout/review')}
         className="fixed bottom-6 right-6 bg-[#9b804a] text-[#f2ede3] p-4 rounded-full shadow-lg hover:bg-[#8a7040] transition-colors z-50"
       >
         <motion.div

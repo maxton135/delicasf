@@ -31,14 +31,14 @@ export default function CheckoutProgressIndicator() {
 
   return (
     <div className="w-full max-w-4xl mx-auto px-4 py-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-center">
         {steps.map((step, index) => {
           const isActive = currentStep === step.number;
           const isCompleted = currentStep > step.number;
           const isUpcoming = currentStep < step.number;
 
           return (
-            <div key={step.number} className="flex items-center flex-1">
+            <div key={step.number} className="flex items-center">
               {/* Step Circle */}
               <div className="flex flex-col items-center">
                 <div className={`
@@ -76,7 +76,7 @@ export default function CheckoutProgressIndicator() {
 
               {/* Connector Line */}
               {index < steps.length - 1 && (
-                <div className={`flex-1 h-0.5 mx-4 transition-colors ${
+                <div className={`w-24 h-0.5 mx-6 transition-colors ${
                   isCompleted ? 'bg-[#9b804a]' : 'bg-[#3a3a3a]'
                 }`} />
               )}
