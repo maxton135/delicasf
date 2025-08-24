@@ -39,7 +39,7 @@ export function middleware(request: NextRequest) {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://connect.squareup.com https://connect.squareupsandbox.com https://web.squarecdn.com; font-src 'self' data:; frame-src 'self' https://connect.squareup.com https://connect.squareupsandbox.com;"
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sandbox.web.squarecdn.com https://web.squarecdn.com https://js.squarecdn.com https://pci-connect.squarecdn.com; style-src 'self' 'unsafe-inline' https://sandbox.web.squarecdn.com https://web.squarecdn.com; img-src 'self' data: https:; connect-src 'self' https://connect.squareup.com https://connect.squareupsandbox.com https://web.squarecdn.com https://pci-connect.squarecdn.com https://sandbox.web.squarecdn.com https://pci-connect.squareupsandbox.com; font-src 'self' data: https://square-fonts-production-f.squarecdn.com https://d1g145x70srn7h.cloudfront.net; frame-src 'self' https://connect.squareup.com https://connect.squareupsandbox.com https://pci-connect.squarecdn.com https://sandbox.web.squarecdn.com;"
   );
   
   // Get client IP

@@ -10,7 +10,11 @@ let db: ReturnType<typeof drizzle> | null = null;
 export function getDatabase() {
   if (!db) {
     const sqlite = new Database(dbPath);
-    sqlite.pragma('journal_mode = WAL');
+    // Set database pragmas for better error handling
+    sqlite.pragma('journal_mode = DELETE'); // Use DELETE mode instead of WAL
+    sqlite.pragma('synchronous = NORMAL'); // Balance performance and safety
+    sqlite.pragma('temp_store = memory'); // Store temp tables in memory
+    sqlite.pragma('mmap_size = 268435456'); // 256MB memory map
     db = drizzle(sqlite, { schema });
   }
   return db;

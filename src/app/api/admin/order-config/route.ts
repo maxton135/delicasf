@@ -18,9 +18,10 @@ export const GET = withAdminAuth(async () => {
       disabledMessage: config.disabledMessage,
     });
     
-    // Add caching headers for order config
-    // Cache for 1 minute (60 seconds) with stale-while-revalidate
-    response.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+    // Disable all caching to ensure immediate admin updates
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
     
     return response;
   } catch (error) {

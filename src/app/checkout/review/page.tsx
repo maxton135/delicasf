@@ -19,9 +19,13 @@ const getItemPrice = (item: any) => {
 };
 
 export default function CheckoutReviewPage() {
-  const { items, totalItems } = useCart();
+  const { items, totalItems, removeFromCart } = useCart();
   const { goToNextStep } = useCheckout();
   const router = useRouter();
+
+  // Debug logging
+  console.log('Review page - items:', items);
+  console.log('Review page - totalItems:', totalItems);
 
   // Calculate total price
   const totalPrice = items.reduce((sum, item) => {
@@ -37,32 +41,43 @@ export default function CheckoutReviewPage() {
     }
   }, 0);
 
-  // Redirect to cart if no items
+  // Don't auto-redirect when cart becomes empty - let user stay on page
+  // They can manually go back to menu if they want
   useEffect(() => {
-    if (totalItems === 0) {
-      router.push('/cart');
-    }
-  }, [totalItems, router]);
+    console.log('Cart has items:', totalItems);
+  }, [totalItems]);
 
   const handleProceedToPayment = () => {
+    if (totalItems === 0) {
+      // Don't proceed if cart is empty
+      return;
+    }
     goToNextStep();
     router.push('/checkout/information');
   };
 
-  const handleEditCart = () => {
-    router.push('/cart');
+  const handleAddMoreItems = () => {
+    router.push('/menu');
   };
 
   if (totalItems === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-[#f2ede3] text-lg mb-4">Your cart is empty</p>
-        <button
-          onClick={() => router.push('/menu')}
-          className="bg-[#9b804a] text-[#f2ede3] px-6 py-2 rounded hover:bg-[#8a7040] transition-colors"
-        >
-          Browse Menu
-        </button>
+      <div className="max-w-4xl mx-auto px-4">
+        <div className="bg-[#2a2a2a] rounded-lg p-8 text-center">
+          <div className="mb-6">
+            <svg className="w-16 h-16 text-[#9b804a]/50 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+            </svg>
+            <h2 className={`${playfair.className} text-2xl text-[#9b804a] mb-2`}>Your cart is empty</h2>
+            <p className="text-[#f2ede3]/70">Add some delicious items to get started with your order</p>
+          </div>
+          <button
+            onClick={() => router.push('/menu')}
+            className="bg-[#9b804a] text-[#f2ede3] px-8 py-3 rounded-lg hover:bg-[#8a7040] transition-colors font-medium"
+          >
+            Browse Menu
+          </button>
+        </div>
       </div>
     );
   }
@@ -122,6 +137,19 @@ export default function CheckoutReviewPage() {
                         </p>
                       )}
                     </div>
+                    
+                    {/* Remove Button */}
+                    <div className="ml-4">
+                      <button
+                        onClick={() => removeFromCart(index)}
+                        className="flex items-center justify-center w-8 h-8 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-full transition-colors"
+                        title="Remove item"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -152,16 +180,21 @@ export default function CheckoutReviewPage() {
             <div className="space-y-3">
               <button
                 onClick={handleProceedToPayment}
-                className="w-full bg-[#9b804a] text-[#f2ede3] py-3 rounded font-medium hover:bg-[#8a7040] transition-colors"
+                disabled={totalItems === 0}
+                className={`w-full py-3 rounded font-medium transition-colors ${
+                  totalItems > 0
+                    ? 'bg-[#9b804a] text-[#f2ede3] hover:bg-[#8a7040]'
+                    : 'bg-[#3a3a3a] text-[#f2ede3]/50 cursor-not-allowed'
+                }`}
               >
                 Proceed to Payment
               </button>
               
               <button
-                onClick={handleEditCart}
+                onClick={handleAddMoreItems}
                 className="w-full text-[#9b804a] border border-[#9b804a] py-3 rounded font-medium hover:bg-[#9b804a]/10 transition-colors"
               >
-                Edit Cart
+                Add More Items
               </button>
             </div>
 

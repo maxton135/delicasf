@@ -159,9 +159,19 @@ function validateCustomerInfo(customer: any): { valid: boolean; errors: string[]
 }
 
 export async function POST(request: NextRequest) {
+  console.log('=== ORDERS API CALLED ===');
+  
   try {
     const body = await request.json();
-    const { items, customer } = body;
+    console.log('Request body received:', {
+      hasItems: !!body.items,
+      itemsLength: body.items?.length,
+      hasCustomer: !!body.customer,
+      hasPayment: !!body.payment,
+      paymentHasToken: !!body.payment?.token
+    });
+    
+    const { items, customer, payment } = body;
 
     // Validate request structure
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -174,6 +184,13 @@ export async function POST(request: NextRequest) {
     if (!customer) {
       return NextResponse.json(
         { error: 'Customer information is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!payment || !payment.token) {
+      return NextResponse.json(
+        { error: 'Payment information is required' },
         { status: 400 }
       );
     }
@@ -202,28 +219,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create order with Square
-    const orderResult = await squareOrdersService.createOrder({
-      items,
-      customer: {
-        name: customer.name.trim(),
-        phone: customer.phone.trim(),
-        pickupTime: customer.pickupTime,
-        notes: customer.notes?.trim(),
-      },
-    });
-
-    if (!orderResult.success) {
-      console.error('Failed to create Square order:', orderResult.error);
-      return NextResponse.json(
-        { error: 'Failed to create order. Please try again.' },
-        { status: 500 }
-      );
-    }
-
-    // Calculate totals for response
-    const totalItems = items.reduce((sum: number, item: any) => sum + item.quantity, 0);
-    const estimatedTotal = items.reduce((sum: number, item: any) => {
+    // Calculate total price for payment
+    const totalPrice = items.reduce((sum: number, item: any) => {
       if (item.isCombo && item.comboSelections) {
         // For combo items, sum up all selections
         return sum + Object.values(item.comboSelections).reduce((comboSum: number, selection: any) => {
@@ -237,13 +234,68 @@ export async function POST(request: NextRequest) {
       }
     }, 0);
 
+    console.log('Processing payment with total price:', totalPrice);
+    
+    // Process payment first with Square Payments API
+    const paymentResult = await squareOrdersService.processPayment({
+      token: payment.token,
+      amount: totalPrice,
+      currency: 'USD',
+      note: `Order for ${customer.name.trim()}`
+    });
+
+    console.log('Payment result:', {
+      success: paymentResult.success,
+      hasPaymentId: !!paymentResult.paymentId,
+      error: paymentResult.error
+    });
+
+    if (!paymentResult.success) {
+      console.error('Payment failed:', paymentResult.error);
+      return NextResponse.json(
+        { error: paymentResult.error || 'Payment failed' },
+        { status: 400 }
+      );
+    }
+
+    // Create order with Square after successful payment
+    console.log('Creating order with payment ID:', paymentResult.paymentId);
+    
+    const orderResult = await squareOrdersService.createOrder({
+      items,
+      customer: {
+        name: customer.name.trim(),
+        phone: customer.phone.trim(),
+        pickupTime: customer.pickupTime,
+        notes: customer.notes?.trim(),
+      },
+      paymentId: paymentResult.paymentId,
+    });
+
+    console.log('Order result:', {
+      success: orderResult.success,
+      orderId: orderResult.squareOrderId,
+      error: orderResult.error
+    });
+
+    if (!orderResult.success) {
+      console.error('Failed to create Square order:', orderResult.error);
+      return NextResponse.json(
+        { error: 'Failed to create order. Please contact support if payment was charged.' },
+        { status: 500 }
+      );
+    }
+
+    // Calculate totals for response
+    const totalItems = items.reduce((sum: number, item: any) => sum + item.quantity, 0);
+
     // Return success response
-    return NextResponse.json({
+    const responseData = {
       success: true,
       order: {
         id: orderResult.squareOrderId,
         totalItems,
-        estimatedTotal,
+        estimatedTotal: totalPrice,
         customer: {
           name: customer.name.trim(),
           phone: customer.phone.trim(),
@@ -263,7 +315,10 @@ export async function POST(request: NextRequest) {
         status: 'confirmed',
       },
       squareOrder: sanitizeForJson(orderResult.order),
-    });
+    };
+    
+    console.log('Returning success response with order ID:', orderResult.squareOrderId);
+    return NextResponse.json(responseData);
 
   } catch (error) {
     console.error('Error processing order:', error);
@@ -288,11 +343,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    console.log('Fetching order with ID:', orderId);
     const orderResult = await squareOrdersService.getOrder(orderId);
+    console.log('Square getOrder result:', {
+      success: orderResult.success,
+      error: orderResult.error,
+      hasOrder: !!orderResult.order
+    });
 
     if (!orderResult.success) {
+      console.error('Failed to fetch order from Square:', orderResult.error);
       return NextResponse.json(
-        { error: 'Order not found' },
+        { error: orderResult.error || 'Order not found' },
         { status: 404 }
       );
     }

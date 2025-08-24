@@ -30,6 +30,14 @@ interface CustomerInfo {
 interface OrderRequest {
   items: CartItem[];
   customer: CustomerInfo;
+  paymentId?: string;
+}
+
+interface PaymentRequest {
+  token: string;
+  amount: bigint | number;
+  currency: string;
+  note?: string;
 }
 
 export class SquareOrdersService {
@@ -184,6 +192,83 @@ export class SquareOrdersService {
     return lineItems;
   }
 
+  // Process payment with Square Payments API
+  async processPayment(paymentRequest: PaymentRequest): Promise<any> {
+    try {
+      const client = this.getSquareClient();
+      const { token, amount, currency, note } = paymentRequest;
+
+      // Convert amount to BigInt if it's not already
+      const amountBigInt = typeof amount === 'bigint' ? amount : BigInt(amount);
+
+      console.log('Processing payment with Square:', {
+        token: token.substring(0, 10) + '...',
+        amount: amountBigInt.toString(),
+        currency,
+        note
+      });
+
+      const paymentData = {
+        sourceId: token,
+        amountMoney: {
+          amount: amountBigInt,
+          currency: 'USD' as any
+        },
+        locationId: process.env.SQUARE_LOCATION_ID,
+        note: note || 'Online order payment',
+        idempotencyKey: `payment_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
+      };
+
+      const response = await client.payments.create(paymentData);
+
+      if (response.errors && response.errors.length > 0) {
+        throw new Error(`Square Payment API errors: ${JSON.stringify(response.errors)}`);
+      }
+
+      const payment = response.payment;
+      console.log('Payment processed successfully:', payment?.id);
+
+      return {
+        success: true,
+        paymentId: payment?.id,
+        payment: this.sanitizeForJson(payment)
+      };
+
+    } catch (error) {
+      console.error('Error processing Square payment:', error);
+      
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to process payment',
+      };
+    }
+  }
+
+  // Helper function to sanitize BigInt values for JSON serialization
+  private sanitizeForJson(obj: any): any {
+    if (obj === null || obj === undefined) {
+      return obj;
+    }
+    
+    if (typeof obj === 'bigint') {
+      return Number(obj);
+    }
+    
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.sanitizeForJson(item));
+    }
+    
+    if (typeof obj === 'object') {
+      const sanitized: any = {};
+      for (const key in obj) {
+        sanitized[key] = this.sanitizeForJson(obj[key]);
+      }
+      return sanitized;
+    }
+    
+    return obj;
+  }
+
   // Create a Square Order
   async createOrder(orderRequest: OrderRequest): Promise<any> {
     try {
@@ -228,7 +313,7 @@ export class SquareOrdersService {
       };
 
       // Custom JSON stringifier that handles BigInt
-      console.log('Creating Square order with data:', JSON.stringify(orderData, (key, value) =>
+      console.log('Creating Square order with data:', JSON.stringify(orderData, (_, value) =>
         typeof value === 'bigint' ? value.toString() : value, 2
       ));
 
@@ -272,15 +357,26 @@ export class SquareOrdersService {
     try {
       const client = this.getSquareClient();
       
-      const response = await client.orders.get(orderId);
+      console.log('Calling Square API to get order:', orderId);
+      const response = await client.orders.get({ orderId });
+      
+      console.log('Square API response:', {
+        hasOrder: !!response.order,
+        hasErrors: !!(response.errors && response.errors.length > 0),
+        errors: response.errors
+      });
       
       if (response.errors && response.errors.length > 0) {
         throw new Error(`Square API errors: ${JSON.stringify(response.errors)}`);
       }
 
+      if (!response.order) {
+        throw new Error('Order not found in Square API response');
+      }
+
       return {
         success: true,
-        order: response.order,
+        order: this.sanitizeForJson(response.order),
       };
 
     } catch (error) {
@@ -298,14 +394,15 @@ export class SquareOrdersService {
     try {
       const client = this.getSquareClient();
       
-      const response = await client.orders.update(orderId, {
+      const response = await client.orders.update({
+        orderId,
         order: {
           locationId: process.env.SQUARE_LOCATION_ID,
           version: 1, // This should be the current order version
           fulfillments: [
             {
               uid: fulfillmentUid,
-              state: state,
+              state: state as any,
             },
           ],
         },

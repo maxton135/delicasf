@@ -34,6 +34,7 @@ interface CartContextType {
   addItem: (item: MenuItem) => void;
   addComboItem: (item: MenuItem, comboSelections: ComboSelection) => void;
   removeItem: (name: string) => void;
+  removeFromCart: (index: number) => void;
   clearCart: () => void;
   totalItems: number;
 }
@@ -77,6 +78,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const removeFromCart = (index: number) => {
+    setItems(currentItems =>
+      currentItems.filter((_, i) => i !== index)
+    );
+  };
+
   const clearCart = () => {
     setItems([]);
   };
@@ -84,7 +91,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <CartContext.Provider value={{ items, addItem, addComboItem, removeItem, clearCart, totalItems }}>
+    <CartContext.Provider value={{ items, addItem, addComboItem, removeItem, removeFromCart, clearCart, totalItems }}>
       {children}
     </CartContext.Provider>
   );

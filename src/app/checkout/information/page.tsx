@@ -66,10 +66,10 @@ export default function CheckoutInformationPage() {
     }
   }, 0);
 
-  // Redirect to cart if no items
+  // Redirect to review if no items (they can see empty cart message there)
   useEffect(() => {
     if (totalItems === 0) {
-      router.push('/cart');
+      router.push('/checkout/review');
     }
   }, [totalItems, router]);
 
@@ -78,49 +78,14 @@ export default function CheckoutInformationPage() {
     router.push('/checkout/review');
   };
 
-  const handlePlaceOrder = async () => {
-    if (!isStepValid(2)) {
+  const handleProceedToPayment = () => {
+    if (!isFormValid) {
       setError('Please fill in all required fields');
       return;
     }
 
-    setIsProcessing(true);
     setError(null);
-
-    try {
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          items,
-          customer: customerInfo,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create order');
-      }
-
-      // Success - store order data and redirect to confirmation
-      localStorage.setItem('lastOrder', JSON.stringify(data.order));
-      
-      // Clear cart and reset checkout
-      clearCart();
-      resetCheckout();
-      
-      // Navigate to confirmation page
-      router.push(`/order-confirmation/${data.order.id}`);
-
-    } catch (error) {
-      console.error('Checkout error:', error);
-      setError(error instanceof Error ? error.message : 'Failed to place order');
-    } finally {
-      setIsProcessing(false);
-    }
+    router.push('/checkout/payment');
   };
 
   const isFormValid = customerInfo.name.trim().length >= 2 && 
@@ -256,7 +221,7 @@ export default function CheckoutInformationPage() {
             {/* Action Buttons */}
             <div className="space-y-3">
               <button
-                onClick={handlePlaceOrder}
+                onClick={handleProceedToPayment}
                 disabled={!isFormValid || isProcessing}
                 className={`w-full py-3 rounded font-medium transition-colors ${
                   isFormValid && !isProcessing
@@ -264,7 +229,7 @@ export default function CheckoutInformationPage() {
                     : 'bg-[#3a3a3a] text-[#f2ede3]/50 cursor-not-allowed'
                 }`}
               >
-                {isProcessing ? 'Processing Order...' : 'Place Order'}
+                Proceed to Payment
               </button>
               
               <button

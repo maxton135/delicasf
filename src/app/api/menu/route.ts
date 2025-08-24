@@ -183,18 +183,10 @@ export async function GET() {
       } : null,
     });
     
-    // Add caching headers
-    // Cache for 30 seconds with stale-while-revalidate for more responsive updates
-    response.headers.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
-    
-    // Add ETag for conditional requests
-    // Include both sync status and current timestamp for categories to ensure fresh data
-    const currentTime = new Date().toISOString();
-    const etagData = syncStatus?.lastSuccessfulSync 
-      ? `${syncStatus.lastSuccessfulSync}-${categories.length}-${currentTime.substring(0, 16)}` // Minute-level precision
-      : `no-sync-${categories.length}-${currentTime.substring(0, 16)}`;
-    const etag = `"${Buffer.from(etagData).toString('base64')}"`;
-    response.headers.set('ETag', etag);
+    // Disable all caching to ensure immediate menu updates
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
     
     return response;
   } catch (error) {

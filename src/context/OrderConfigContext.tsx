@@ -39,29 +39,9 @@ export function OrderConfigProvider({ children }: { children: ReactNode }) {
       const config = await response.json();
       setOrdersEnabled(config.ordersEnabled);
       setDisabledMessage(config.disabledMessage);
-      
-      // Update localStorage cache
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('delica-orders-enabled', JSON.stringify(config.ordersEnabled));
-        localStorage.setItem('delica-disabled-message', config.disabledMessage);
-      }
     } catch (err) {
       console.error('Error fetching order config:', err);
       setError('Failed to load order configuration');
-      
-      // Fall back to localStorage if API fails
-      if (typeof window !== 'undefined') {
-        const savedEnabled = localStorage.getItem('delica-orders-enabled');
-        const savedMessage = localStorage.getItem('delica-disabled-message');
-        
-        if (savedEnabled !== null) {
-          setOrdersEnabled(JSON.parse(savedEnabled));
-        }
-        
-        if (savedMessage !== null) {
-          setDisabledMessage(savedMessage);
-        }
-      }
     } finally {
       setLoading(false);
     }
@@ -89,12 +69,6 @@ export function OrderConfigProvider({ children }: { children: ReactNode }) {
           ) {
             setOrdersEnabled(config.ordersEnabled);
             setDisabledMessage(config.disabledMessage);
-            
-            // Update localStorage cache
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('delica-orders-enabled', JSON.stringify(config.ordersEnabled));
-              localStorage.setItem('delica-disabled-message', config.disabledMessage);
-            }
           }
         }
       } catch (error) {
@@ -126,12 +100,6 @@ export function OrderConfigProvider({ children }: { children: ReactNode }) {
       const config = await response.json();
       setOrdersEnabled(config.ordersEnabled);
       setDisabledMessage(config.disabledMessage);
-      
-      // Update localStorage cache
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('delica-orders-enabled', JSON.stringify(config.ordersEnabled));
-        localStorage.setItem('delica-disabled-message', config.disabledMessage);
-      }
     } catch (err) {
       console.error('Error updating order config:', err);
       setError('Failed to update order configuration');

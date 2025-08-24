@@ -21,6 +21,11 @@ const steps: StepInfo[] = [
   },
   {
     number: 3,
+    title: 'Payment',
+    description: 'Secure payment'
+  },
+  {
+    number: 4,
     title: 'Complete',
     description: 'Order confirmation'
   }

@@ -9,6 +9,13 @@ interface CustomerInfo {
   notes: string;
 }
 
+interface PaymentInfo {
+  token: string | null;
+  method: 'card' | 'apple_pay' | 'google_pay' | null;
+  lastFourDigits: string | null;
+  cardBrand: string | null;
+}
+
 interface CheckoutContextType {
   // Current step tracking
   currentStep: number;
@@ -18,6 +25,11 @@ interface CheckoutContextType {
   customerInfo: CustomerInfo;
   setCustomerInfo: (info: CustomerInfo) => void;
   updateCustomerInfo: (updates: Partial<CustomerInfo>) => void;
+  
+  // Payment information
+  paymentInfo: PaymentInfo;
+  setPaymentInfo: (info: PaymentInfo) => void;
+  updatePaymentInfo: (updates: Partial<PaymentInfo>) => void;
   
   // Checkout state
   isProcessing: boolean;
@@ -60,6 +72,14 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
     notes: ''
   });
 
+  // Initialize payment info
+  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo>({
+    token: null,
+    method: null,
+    lastFourDigits: null,
+    cardBrand: null
+  });
+
   // Load saved checkout data on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -68,6 +88,7 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
         try {
           const data = JSON.parse(saved);
           setCustomerInfo(data.customerInfo || customerInfo);
+          setPaymentInfo(data.paymentInfo || paymentInfo);
           setCurrentStep(data.currentStep || 1);
         } catch (error) {
           console.warn('Failed to load saved checkout data:', error);
@@ -76,24 +97,32 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Save checkout data whenever it changes
+  // Save checkout data whenever it changes (but don't save payment tokens for security)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const dataToSave = {
         customerInfo,
+        paymentInfo: {
+          ...paymentInfo,
+          token: null // Never save payment tokens to localStorage for security
+        },
         currentStep,
         timestamp: new Date().toISOString()
       };
       localStorage.setItem(CHECKOUT_STORAGE_KEY, JSON.stringify(dataToSave));
     }
-  }, [customerInfo, currentStep]);
+  }, [customerInfo, paymentInfo, currentStep]);
 
   const updateCustomerInfo = (updates: Partial<CustomerInfo>) => {
     setCustomerInfo(prev => ({ ...prev, ...updates }));
   };
 
+  const updatePaymentInfo = (updates: Partial<PaymentInfo>) => {
+    setPaymentInfo(prev => ({ ...prev, ...updates }));
+  };
+
   const goToNextStep = () => {
-    if (currentStep < 3) {
+    if (currentStep < 4) {
       setCurrentStep(currentStep + 1);
       setError(null); // Clear any previous errors
     }
@@ -113,6 +142,12 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
       phone: '',
       pickupTime: getDefaultPickupTime(),
       notes: ''
+    });
+    setPaymentInfo({
+      token: null,
+      method: null,
+      lastFourDigits: null,
+      cardBrand: null
     });
     setIsProcessing(false);
     setError(null);
@@ -136,7 +171,11 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
                customerInfo.phone.trim().length >= 10;
       
       case 3:
-        // Step 3 (success) doesn't need validation
+        // Step 3 requires valid payment token
+        return paymentInfo.token !== null;
+      
+      case 4:
+        // Step 4 (success) doesn't need validation
         return true;
       
       default:
@@ -151,6 +190,9 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
       customerInfo,
       setCustomerInfo,
       updateCustomerInfo,
+      paymentInfo,
+      setPaymentInfo,
+      updatePaymentInfo,
       isProcessing,
       setIsProcessing,
       error,
